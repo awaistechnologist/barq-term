@@ -15,6 +15,12 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Barq "$APP/Contents/MacOS/Barq"
 cp .build/release/barq-mcp "$APP/Contents/MacOS/barq-mcp"
 
+# Icon (generate if missing)
+if [ ! -f dist/Barq.icns ]; then
+    swift scripts/make-icon.swift || true
+fi
+[ -f dist/Barq.icns ] && cp dist/Barq.icns "$APP/Contents/Resources/Barq.icns"
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -24,6 +30,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleName</key><string>Barq</string>
     <key>CFBundleDisplayName</key><string>Barq</string>
     <key>CFBundleExecutable</key><string>Barq</string>
+    <key>CFBundleIconFile</key><string>Barq</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
     <key>CFBundleVersion</key><string>${VERSION}</string>
@@ -36,6 +43,23 @@ cat > "$APP/Contents/Info.plist" <<PLIST
         <!-- Ollama runs on http://127.0.0.1 -->
         <key>NSAllowsLocalNetworking</key><true/>
     </dict>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key><string>io.barq.terminal</string>
+            <key>CFBundleURLSchemes</key><array><string>barq</string></array>
+        </dict>
+    </array>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key><string>Folder</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array><string>public.folder</string></array>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST

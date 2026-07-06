@@ -35,6 +35,10 @@ struct BarqApp: App {
                     .keyboardShortcut("d", modifiers: .command)
                 Button("Split Down") { state.splitFocused(direction: .vertical) }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
+                Button("Move Pane to New Window") { state.detachFocusedSession() }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                Toggle("Broadcast Input to All Panes", isOn: $state.broadcastInput)
+                    .keyboardShortcut("i", modifiers: [.command, .shift])
                 Divider()
                 Button("New Connection Profile…") {
                     state.editingProfile = nil
@@ -139,6 +143,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         Task { @MainActor in
             AppState.shared.startServices()
+        }
+    }
+
+    /// Finder "Open with Barq" on a folder → local tab there.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        Task { @MainActor in
+            for url in urls {
+                if url.isFileURL {
+                    AppState.shared.openLocalTab(in: url.path)
+                } else if url.scheme == "barq" {
+                    AppState.shared.handleURL(url)
+                }
+            }
         }
     }
 

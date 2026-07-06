@@ -34,6 +34,10 @@ struct TabBarView: View {
                                 state.selectedTabID = tab.id
                                 state.splitFocused(direction: .vertical)
                             }
+                            Button("Move to New Window") {
+                                state.selectedTabID = tab.id
+                                state.detachFocusedSession()
+                            }
                         }
                     }
                 }

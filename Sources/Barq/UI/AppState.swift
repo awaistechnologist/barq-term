@@ -210,6 +210,35 @@ final class AppState: ObservableObject {
         connect(profile: profile)
     }
 
+    /// Open a local shell rooted at `path` (Finder "Open with Barq").
+    func openLocalTab(in path: String) {
+        var profile = ConnectionProfile()
+        profile.name = (path as NSString).lastPathComponent
+        profile.kind = .local
+        profile.workingDirectory = path
+        connect(profile: profile)
+    }
+
+    /// Handle a barq:// deep link.
+    func handleURL(_ url: URL) {
+        switch BarqURL.parse(url) {
+        case .connectProfile(let name):
+            if let profile = profiles.profile(named: name) { connect(profile: profile) }
+        case .openPath(let path):
+            openLocalTab(in: path)
+        case .sshQuick(let host, let user, let port):
+            var profile = ConnectionProfile()
+            profile.name = host
+            profile.kind = .ssh
+            profile.host = host
+            profile.username = user ?? ""
+            profile.port = port ?? 22
+            connect(profile: profile)
+        case .unknown:
+            break
+        }
+    }
+
     func connect(profile: ConnectionProfile, launch: SessionLaunch = .shell) {
         let session = sessions.open(profile: profile, origin: .user, launch: launch)
         attachTab(for: session)
@@ -251,6 +280,28 @@ final class AppState: ObservableObject {
                 break
             }
         }
+    }
+
+    /// Move the focused session into its own window, removing it from the tab
+    /// tree (the session stays alive).
+    func detachFocusedSession() {
+        guard let session = focusedSession else { return }
+        let sessionID = session.id
+        // Remove the leaf from its tab without terminating the session.
+        for idx in tabs.indices where tabs[idx].root.sessionIDs.contains(sessionID) {
+            if let newRoot = tabs[idx].root.removing(sessionID: sessionID) {
+                tabs[idx].root = newRoot
+                if tabs[idx].focusedSessionID == sessionID {
+                    tabs[idx].focusedSessionID = newRoot.sessionIDs[0]
+                }
+            } else {
+                let tabID = tabs[idx].id
+                tabs.remove(at: idx)
+                if selectedTabID == tabID { selectedTabID = tabs.last?.id }
+            }
+            break
+        }
+        DetachedWindowManager.shared.detach(session: session)
     }
 
     func splitFocused(direction: SplitDirection) {

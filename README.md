@@ -22,16 +22,22 @@ It is built AI-first around three ideas:
 
 ### Terminal
 - Native SwiftTerm emulator, true color, Metal GPU renderer
-- Tabs, **split panes** (⌘D / ⇧⌘D), multiple windows
-- **Command palette** (⇧⌘P) with fuzzy search over every action and host
+- Tabs, **split panes** (⌘D / ⇧⌘D), **tear-off windows** (⇧⌘N)
+- **Command palette** (⇧⌘P) and **global search** (⇧⌘F) across every session's scrollback
+- **⌘F find**, middle-click paste, tab rename, live theming
+- **Broadcast input** — type once, send to every pane in a tab
+- **Session recording** to asciinema v2 `.cast`
 - 6 built-in themes (Catppuccin Mocha/Latte, Dracula, Nord, Tokyo Night, Solarized Dark)
 
 ### Connections
-- **SSH** — agent/password/key auth, jump hosts (ProxyJump), port forwarding (-L/-R/-D SOCKS5), keep-alives, legacy SCP mode for BusyBox/dropbear devices
+- **SSH** — agent/password/key auth, jump hosts (ProxyJump), **Cloudflare Access**, port forwarding (-L/-R/-D SOCKS5), keep-alives, legacy SCP mode for BusyBox/dropbear devices
 - **Serial** — raw termios, all baud rates, data/stop bits, parity
 - **Telnet** — built-in client with IAC negotiation (no system telnet needed)
-- **Local shells**, login-shell semantics
-- Profiles with tags, sidebar grouping, search, custom per-profile actions, JSON import/export
+- **Local shells** with cwd tracking; **SFTP** session tabs
+- **Chrome SOCKS launcher** — open a proxied Chrome with include/exclude host filtering
+- **Drag-and-drop SCP upload** — drop files onto an SSH terminal
+- Profiles with tags, sidebar grouping, search, custom actions; JSON and `~/.ssh/config` import/export
+- **Session restore** on relaunch; **`barq://` URL scheme** and Finder "Open folder in Barq"
 - Passwords and keys never touch disk in plaintext — everything is Keychain-backed
 
 ### AI
@@ -40,14 +46,16 @@ It is built AI-first around three ideas:
 - **⌘E** — explain the last output/error
 - Ollama auto-detection, or OpenRouter with any model id
 
-### MCP — 16 tools for agents
+### MCP — 17 tools for agents
 
-`list_profiles` · `add_profile` · `remove_profile` · `connect` · `list_sessions` · `get_status` · `run_command` · `send_input` · `read_output` · `disconnect` · `list_serial_ports` · `upload_file` · `download_file` · `vault_list` · `vault_get` · `vault_set`
+`list_profiles` · `add_profile` · `remove_profile` · `connect` · `list_sessions` · `get_status` · `run_command` · `run_on_tag` · `send_input` · `read_output` · `disconnect` · `list_serial_ports` · `upload_file` · `download_file` · `vault_list` · `vault_get` · `vault_set`
 
 Safety model:
 - Agents can only connect to profiles whose **AI chip** you switched on
 - Agent-created profiles start with AI access **off**
 - Vault reads honor per-variable policy; **secret** values are substituted into commands server-side and never returned to the agent
+- **Guardrails**: destructive commands (rm -rf, mkfs, force push, DB drops, pipe-to-shell…) require a native approval prompt
+- **`run_on_tag`**: fleet operations across every AI-allowed host carrying a tag
 - Full audit log of every agent access in the Vault window
 
 ## Quick start
@@ -93,12 +101,14 @@ Requirements: macOS 13+, Swift 6 toolchain (Command Line Tools are enough — no
 
 ## Roadmap
 
+Shipped in 0.2.0: session restore, fleet `run_on_tag`, session recording, agent guardrails, SFTP, global search.
+
+Next:
 - [ ] Developer ID signing + notarization, Homebrew cask
 - [ ] Block-based output (AI-addressable command/output units)
-- [ ] Session persistence across app restarts
-- [ ] Fleet operations: run across all hosts with a tag; runbooks
-- [ ] SFTP browser panel, session recording/replay
-- [ ] Guardrail policies for agent-run commands (allowlists, read-only mode, approval gates)
+- [ ] SFTP dual-pane browser (beyond the interactive SFTP tab)
+- [ ] Runbooks: record a session → parameterized, replayable procedure
+- [ ] Read-only agent mode and per-profile command allowlists
 
 ## License
 
