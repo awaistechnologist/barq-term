@@ -1,4 +1,4 @@
-// swift-tools-version:5.9
+// swift-tools-version:6.0
 import PackageDescription
 
 let package = Package(
@@ -15,16 +15,19 @@ let package = Package(
             dependencies: [
                 .product(name: "SwiftTerm", package: "SwiftTerm")
             ],
-            path: "Sources/Barq"
+            path: "Sources/Barq",
+            swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
             name: "barq-mcp",
-            path: "Sources/BarqMCP"
+            path: "Sources/BarqMCP",
+            swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
             name: "BarqTests",
             dependencies: ["Barq"],
-            path: "Tests/BarqTests"
+            path: "Tests/BarqTests",
+            swiftSettings: [.swiftLanguageMode(.v5)]
         )
     ]
 )

@@ -74,7 +74,8 @@ final class TelnetBackend: StreamBackend {
     }
 
     /// Handle IAC negotiation; return plain data bytes.
-    private func parseTelnet(_ bytes: [UInt8]) -> [UInt8] {
+    /// Internal (not private) so the protocol state machine is unit-testable.
+    func parseTelnet(_ bytes: [UInt8]) -> [UInt8] {
         var out: [UInt8] = []
         out.reserveCapacity(bytes.count)
         var responses: [UInt8] = []
@@ -114,10 +115,14 @@ final class TelnetBackend: StreamBackend {
         }
 
         if !responses.isEmpty {
+            lastNegotiationResponse = responses
             connection?.send(content: Data(responses), completion: .contentProcessed { _ in })
         }
         return out
     }
+
+    /// Last IAC negotiation reply produced — captured for unit tests.
+    private(set) var lastNegotiationResponse: [UInt8] = []
 
     func write(_ data: Data) {
         // Escape 0xFF bytes per telnet spec.

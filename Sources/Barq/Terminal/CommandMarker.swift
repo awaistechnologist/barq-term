@@ -18,19 +18,21 @@ enum CommandMarker {
         "\(command); printf '\\n\(marker(token: token))_%s__\\n' \"$?\""
     }
 
-    /// Scan accumulated output for the marker. Returns the payload before the
-    /// marker line and the exit code if complete.
+    /// Scan accumulated output for the *executed* marker. The echoed command
+    /// line also contains the marker text (as `..._%s__`), so only a marker
+    /// followed by a numeric exit code counts as completion.
     static func extract(output: String, token: String, sentCommand: String) -> (done: Bool, payload: String, exitCode: Int?) {
-        let markerPrefix = marker(token: token) + "_"
-        guard let markerRange = output.range(of: markerPrefix) else {
+        let pattern = "\(marker(token: token))_(-?[0-9]+)__"
+        guard
+            let regex = try? NSRegularExpression(pattern: pattern),
+            let match = regex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+            let matchRange = Range(match.range, in: output),
+            let codeRange = Range(match.range(at: 1), in: output)
+        else {
             return (false, cleanEcho(output, sentCommand: sentCommand, token: token), nil)
         }
-        let payload = String(output[..<markerRange.lowerBound])
-        var exitCode: Int?
-        let after = output[markerRange.upperBound...]
-        if let end = after.range(of: "__") {
-            exitCode = Int(after[..<end.lowerBound])
-        }
+        let payload = String(output[..<matchRange.lowerBound])
+        let exitCode = Int(output[codeRange])
         return (true, cleanEcho(payload, sentCommand: sentCommand, token: token), exitCode)
     }
 
