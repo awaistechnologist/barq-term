@@ -20,6 +20,12 @@ struct TabBarView: View {
                             Button("Close") { state.closeTab(id: tab.id) }
                             Button("Close Others") { state.closeOtherTabs(keeping: tab.id) }
                             Divider()
+                            if let session = state.sessions.session(id: tab.focusedSessionID) {
+                                Button(session.isRecording ? "Stop Recording" : "Start Recording") {
+                                    session.toggleRecording()
+                                }
+                            }
+                            Divider()
                             Button("Split Right") {
                                 state.selectedTabID = tab.id
                                 state.splitFocused(direction: .horizontal)

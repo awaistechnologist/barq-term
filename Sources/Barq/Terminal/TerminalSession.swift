@@ -41,6 +41,9 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published var title: String
     @Published var status: SessionStatus = .connecting
     @Published var currentDirectory: String?
+    @Published var isRecording = false
+
+    let recorder = SessionRecorder()
 
     private(set) var terminalView: TerminalView!
     private var streamBackend: StreamBackend?
@@ -66,6 +69,7 @@ final class TerminalSession: ObservableObject, Identifiable {
             view.applyBarqStyle(theme: theme, settings: settings)
             view.onData = { [weak self] slice in
                 self?.buffer.append(slice)
+                self?.recordSlice(slice)
                 self?.autoTypePasswordIfPrompted()
             }
             view.onExit = { [weak self] code in
@@ -90,6 +94,7 @@ final class TerminalSession: ObservableObject, Identifiable {
             view.applyBarqStyle(theme: theme, settings: settings)
             view.onData = { [weak self] slice in
                 self?.buffer.append(slice)
+                self?.recordSlice(slice)
             }
             view.onExit = { [weak self] code in
                 Task { @MainActor in
@@ -246,6 +251,31 @@ final class TerminalSession: ObservableObject, Identifiable {
                     : "\u{1B}[31m✗ Upload failed: \(err.trimmingCharacters(in: .whitespacesAndNewlines))\u{1B}[0m"
                 self?.terminalView.feed(text: "\(msg)\r\n")
             }
+        }
+    }
+
+    private nonisolated func recordSlice(_ slice: ArraySlice<UInt8>) {
+        guard recorder.isRecording else { return }
+        recorder.record(String(decoding: slice, as: UTF8.self))
+    }
+
+    /// Toggle asciinema recording; returns the .cast URL when stopping.
+    @discardableResult
+    func toggleRecording() -> URL? {
+        if recorder.isRecording {
+            let url = recorder.stop()
+            isRecording = false
+            if let url {
+                terminalView.feed(text: "\r\n\u{1B}[32m● Recording saved: \(url.path)\u{1B}[0m\r\n")
+            }
+            return url
+        } else {
+            let dir = AppPaths.supportDirectory.appendingPathComponent("recordings", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let url = recorder.start(title: title, to: dir)
+            isRecording = recorder.isRecording
+            terminalView.feed(text: "\r\n\u{1B}[31m● Recording started\u{1B}[0m\r\n")
+            return url
         }
     }
 
