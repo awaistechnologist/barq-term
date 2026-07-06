@@ -97,11 +97,25 @@ struct CommandPaletteView: View {
             PaletteAction(title: "AI Command…", subtitle: "⌘K — natural language to command", symbol: "sparkles") { state.composerVisible = true },
             PaletteAction(title: "Toggle AI Panel", subtitle: "⇧⌘A", symbol: "sidebar.right") { state.aiPanelVisible.toggle() },
             PaletteAction(title: "Toggle Sidebar", subtitle: "⌘B", symbol: "sidebar.left") { state.sidebarVisible.toggle() },
+            PaletteAction(title: "Search All Sessions", subtitle: "⇧⌘F", symbol: "magnifyingglass") { state.globalSearchVisible = true },
             PaletteAction(title: "New Connection Profile…", subtitle: nil, symbol: "plus.circle") {
                 state.editingProfile = nil
                 state.showingProfileEditor = true
             }
         ]
+        for snippet in state.snippets.snippets {
+            actions.append(PaletteAction(
+                title: "Snippet: \(snippet.title.isEmpty ? snippet.command : snippet.title)",
+                subtitle: snippet.command,
+                symbol: "text.badge.plus"
+            ) {
+                if snippet.placeholders.isEmpty {
+                    state.runSnippet(snippet.command)
+                } else {
+                    state.snippetsVisible = true
+                }
+            })
+        }
         for theme in Themes.all {
             actions.append(PaletteAction(title: "Theme: \(theme.name)", subtitle: nil, symbol: "paintpalette") {
                 state.settings.themeID = theme.id

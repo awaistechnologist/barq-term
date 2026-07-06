@@ -27,12 +27,13 @@ struct ContentView: View {
             }
 
             // Overlays
-            if state.paletteVisible || state.composerVisible {
+            if state.paletteVisible || state.composerVisible || state.globalSearchVisible {
                 Color.black.opacity(0.25)
                     .ignoresSafeArea()
                     .onTapGesture {
                         state.paletteVisible = false
                         state.composerVisible = false
+                        state.globalSearchVisible = false
                     }
                 VStack {
                     Spacer().frame(height: 90)
@@ -40,6 +41,8 @@ struct ContentView: View {
                         CommandPaletteView(state: state)
                     } else if state.composerVisible {
                         CommandComposerView(state: state)
+                    } else if state.globalSearchVisible {
+                        GlobalSearchView(state: state)
                     }
                     Spacer()
                 }

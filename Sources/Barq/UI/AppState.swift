@@ -63,6 +63,7 @@ final class AppState: ObservableObject {
 
     let profiles = ProfileStore()
     let vault = VaultStore()
+    let snippets = SnippetStore()
     let sessions = SessionManager.shared
     let settings = SettingsStore.shared
 
@@ -74,6 +75,8 @@ final class AppState: ObservableObject {
     @Published var aiPanelVisible = false
     @Published var paletteVisible = false
     @Published var composerVisible = false
+    @Published var globalSearchVisible = false
+    @Published var snippetsVisible = false
     @Published var editingProfile: ConnectionProfile?
     @Published var showingProfileEditor = false
 
@@ -238,6 +241,18 @@ final class AppState: ObservableObject {
         tab.root = tab.root.splitting(sessionID: focused.id, with: session.id, direction: direction)
         tab.focusedSessionID = session.id
         tabs = tabs.map { $0.id == tab.id ? tab : $0 }
+    }
+
+    func focusSession(_ sessionID: String) {
+        if let idx = tabs.firstIndex(where: { $0.root.sessionIDs.contains(sessionID) }) {
+            tabs[idx].focusedSessionID = sessionID
+        }
+    }
+
+    /// Run a snippet in the focused session (vault expansion happens as the
+    /// user types, so this sends the literal command).
+    func runSnippet(_ command: String) {
+        focusedSession?.send(command + "\n")
     }
 
     func renameTab(id: UUID, to title: String) {

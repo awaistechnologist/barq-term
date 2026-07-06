@@ -4,6 +4,7 @@ import SwiftUI
 struct BarqApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @ObservedObject private var state = AppState.shared
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
         WindowGroup {
@@ -58,11 +59,25 @@ struct BarqApp: App {
                 .keyboardShortcut("b", modifiers: .command)
                 Button("Command Palette…") { state.paletteVisible = true }
                     .keyboardShortcut("p", modifiers: [.command, .shift])
+                Button("Search All Sessions…") { state.globalSearchVisible = true }
+                    .keyboardShortcut("f", modifiers: [.command, .shift])
+            }
+            CommandMenu("Tools") {
+                Button("Context Vault") {
+                    openWindow(id: "vault")
+                }
+                Button("Snippets") {
+                    openWindow(id: "snippets")
+                }
             }
         }
 
         Window("Context Vault", id: "vault") {
             VaultView(vault: state.vault)
+        }
+
+        Window("Snippets", id: "snippets") {
+            SnippetsView(state: state)
         }
 
         Settings {
