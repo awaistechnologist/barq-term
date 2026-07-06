@@ -122,6 +122,42 @@ final class AppState: ObservableObject {
         }
     }
 
+    // MARK: Session restore
+
+    private var restoreScheduled = false
+
+    /// Persist the current tab set (debounced to the next runloop tick).
+    func persistSessions() {
+        guard !restoreScheduled else { return }
+        restoreScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.restoreScheduled = false
+            SessionRestore.save(SessionRestore.snapshot(from: self.tabs, sessions: self.sessions))
+        }
+    }
+
+    /// Reopen tabs saved from a previous run. Returns true if anything was
+    /// restored. Local sessions reopen in their last working directory.
+    @discardableResult
+    func restoreSessions() -> Bool {
+        let saved = SessionRestore.load()
+        guard !saved.isEmpty else { return false }
+        var restoredAny = false
+        for entry in saved {
+            guard var profile = profiles.profile(id: entry.profileID) else { continue }
+            if profile.kind == .local, let cwd = entry.workingDirectory {
+                profile.workingDirectory = cwd
+            }
+            let session = sessions.open(profile: profile, origin: .user)
+            let tab = TerminalTab(root: .leaf(session.id), focusedSessionID: session.id, customTitle: entry.customTitle)
+            tabs.append(tab)
+            selectedTabID = tab.id
+            restoredAny = true
+        }
+        return restoredAny
+    }
+
     func startServices() {
         if settings.mcpEnabled {
             let handler = BridgeHandler(profiles: profiles, vault: vault)
@@ -162,6 +198,7 @@ final class AppState: ObservableObject {
         let tab = TerminalTab(root: .leaf(session.id), focusedSessionID: session.id)
         tabs.append(tab)
         selectedTabID = tab.id
+        persistSessions()
     }
 
     func closeTab(id: UUID) {
@@ -173,6 +210,7 @@ final class AppState: ObservableObject {
         if selectedTabID == id {
             selectedTabID = tabs.last?.id
         }
+        persistSessions()
     }
 
     func closeSession(_ sessionID: String) {

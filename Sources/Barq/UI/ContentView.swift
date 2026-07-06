@@ -51,7 +51,9 @@ struct ContentView: View {
         }
         .onAppear {
             if state.tabs.isEmpty {
-                state.newLocalTab()
+                if !state.restoreSessions() {
+                    state.newLocalTab()
+                }
             }
         }
     }
