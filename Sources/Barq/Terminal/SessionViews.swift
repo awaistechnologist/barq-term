@@ -7,6 +7,7 @@ import SwiftTerm
 /// LocalProcessTerminalView subclass that taps the raw output stream so the
 /// vault/AI/MCP layers can read it, without interfering with rendering.
 final class ProcessTerminalView: LocalProcessTerminalView {
+    var sessionID: String?
     var onData: ((ArraySlice<UInt8>) -> Void)?
     var onExit: ((Int32?) -> Void)?
 
@@ -35,6 +36,7 @@ protocol StreamBackend: AnyObject {
 /// TCP/telnet). Keyboard input goes to the backend; backend data is fed to
 /// the emulator and the tap.
 final class StreamTerminalView: TerminalView, TerminalViewDelegate {
+    var sessionID: String?
     var backend: StreamBackend?
     var onData: ((ArraySlice<UInt8>) -> Void)?
     var onExit: ((Int32?) -> Void)?

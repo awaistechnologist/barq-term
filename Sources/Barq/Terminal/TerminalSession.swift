@@ -52,6 +52,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         switch profile.kind {
         case .local, .ssh:
             let view = ProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+            view.sessionID = id
             view.applyBarqStyle(theme: theme, settings: settings)
             view.onData = { [weak self] slice in
                 self?.buffer.append(slice)
@@ -66,6 +67,7 @@ final class TerminalSession: ObservableObject, Identifiable {
             terminalView = view
         case .serial, .telnet:
             let view = StreamTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+            view.sessionID = id
             view.applyBarqStyle(theme: theme, settings: settings)
             view.onData = { [weak self] slice in
                 self?.buffer.append(slice)
