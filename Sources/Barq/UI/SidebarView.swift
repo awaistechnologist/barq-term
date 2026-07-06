@@ -151,6 +151,9 @@ private struct ProfileRow: View {
         .onHover { hovering = $0 }
         .contextMenu {
             Button("Connect") { state.connect(profile: profile) }
+            if profile.kind == .ssh {
+                Button("Open SFTP") { state.connect(profile: profile, launch: .sftp) }
+            }
             Button("Edit…") {
                 state.editingProfile = profile
                 state.showingProfileEditor = true

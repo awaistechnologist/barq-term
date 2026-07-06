@@ -77,11 +77,14 @@ final class AppState: ObservableObject {
     @Published var composerVisible = false
     @Published var globalSearchVisible = false
     @Published var snippetsVisible = false
+    /// When true, keystrokes in the focused pane mirror to sibling panes.
+    @Published var broadcastInput = false
     @Published var editingProfile: ConnectionProfile?
     @Published var showingProfileEditor = false
 
     private var bridge: BridgeServer?
     private var cancellables = Set<AnyCancellable>()
+    private var broadcastMonitor: Any?
 
     private init() {
         NotificationCenter.default.publisher(for: .barqSessionOpened)
@@ -169,6 +172,21 @@ final class AppState: ObservableObject {
             bridge = server
         }
         Task { await AIService.shared.refreshOllama() }
+        installBroadcastMonitor()
+    }
+
+    /// Mirror keystrokes to sibling panes while broadcast is enabled.
+    private func installBroadcastMonitor() {
+        broadcastMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+            guard let self, self.broadcastInput,
+                  let tab = self.selectedTab,
+                  let chars = event.characters, !chars.isEmpty else { return event }
+            let targets = Broadcast.targets(in: tab.root.sessionIDs, focused: tab.focusedSessionID)
+            for id in targets {
+                self.sessions.session(id: id)?.send(chars)
+            }
+            return event // focused pane still handles it natively
+        }
     }
 
     // MARK: Tabs & sessions
@@ -192,8 +210,8 @@ final class AppState: ObservableObject {
         connect(profile: profile)
     }
 
-    func connect(profile: ConnectionProfile) {
-        let session = sessions.open(profile: profile, origin: .user)
+    func connect(profile: ConnectionProfile, launch: SessionLaunch = .shell) {
+        let session = sessions.open(profile: profile, origin: .user, launch: launch)
         attachTab(for: session)
     }
 

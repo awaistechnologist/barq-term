@@ -19,11 +19,12 @@ final class SessionManager: ObservableObject {
     private init() {}
 
     @discardableResult
-    func open(profile: ConnectionProfile, origin: SessionOrigin = .user) -> TerminalSession {
+    func open(profile: ConnectionProfile, origin: SessionOrigin = .user, launch: SessionLaunch = .shell) -> TerminalSession {
         let session = TerminalSession(
             id: String(nextID),
             profile: profile,
             origin: origin,
+            launch: launch,
             settings: SettingsStore.shared
         )
         nextID += 1

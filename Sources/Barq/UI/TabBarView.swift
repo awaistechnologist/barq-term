@@ -45,6 +45,15 @@ struct TabBarView: View {
             .help("New local tab (⌘T)")
 
             Button {
+                state.broadcastInput.toggle()
+            } label: {
+                Image(systemName: state.broadcastInput ? "dot.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right")
+                    .foregroundStyle(state.broadcastInput ? Color.orange : Color.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help(state.broadcastInput ? "Broadcasting input to all panes in this tab — click to stop" : "Broadcast input to all panes in this tab")
+
+            Button {
                 state.aiPanelVisible.toggle()
             } label: {
                 Image(systemName: "sparkles")

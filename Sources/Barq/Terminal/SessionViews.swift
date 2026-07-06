@@ -10,6 +10,26 @@ final class ProcessTerminalView: LocalProcessTerminalView {
     var sessionID: String?
     var onData: ((ArraySlice<UInt8>) -> Void)?
     var onExit: ((Int32?) -> Void)?
+    /// Called with dropped file paths (used for SCP upload on SSH sessions).
+    var onFilesDropped: (([String]) -> Void)?
+
+    func enableFileDrops() {
+        registerForDraggedTypes([.fileURL])
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        onFilesDropped != nil ? .copy : super.draggingEntered(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let onFilesDropped,
+              let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL],
+              !urls.isEmpty else {
+            return super.performDragOperation(sender)
+        }
+        onFilesDropped(urls.map(\.path))
+        return true
+    }
 
     override func dataReceived(slice: ArraySlice<UInt8>) {
         onData?(slice)

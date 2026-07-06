@@ -22,6 +22,12 @@ enum SessionOrigin: String {
     case agent
 }
 
+/// How an SSH profile's session is launched.
+enum SessionLaunch {
+    case shell   // interactive ssh shell (default)
+    case sftp    // interactive sftp subsystem
+}
+
 /// One live terminal session: a SwiftTerm view + backend + output tap.
 /// Created and used on the main thread; `runCommand` is async.
 @MainActor
@@ -29,6 +35,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     nonisolated let id: String
     let profile: ConnectionProfile
     let origin: SessionOrigin
+    let launch: SessionLaunch
     let buffer = OutputBuffer()
 
     @Published var title: String
@@ -40,11 +47,13 @@ final class TerminalSession: ObservableObject, Identifiable {
     private var pendingPassword: String?
     private var processAdapter: ProcessEventAdapter?
 
-    init(id: String, profile: ConnectionProfile, origin: SessionOrigin, settings: SettingsStore) {
+    init(id: String, profile: ConnectionProfile, origin: SessionOrigin, launch: SessionLaunch = .shell, settings: SettingsStore) {
         self.id = id
         self.profile = profile
         self.origin = origin
-        self.title = profile.name.isEmpty ? profile.target : profile.name
+        self.launch = launch
+        let baseTitle = profile.name.isEmpty ? profile.target : profile.name
+        self.title = launch == .sftp ? "SFTP · \(baseTitle)" : baseTitle
         buildView(settings: settings)
     }
 
@@ -68,6 +77,12 @@ final class TerminalSession: ObservableObject, Identifiable {
             let adapter = ProcessEventAdapter(session: self)
             view.processDelegate = adapter
             processAdapter = adapter
+            if profile.kind == .ssh {
+                view.enableFileDrops()
+                view.onFilesDropped = { [weak self] paths in
+                    Task { @MainActor in self?.handleDroppedFiles(paths) }
+                }
+            }
             terminalView = view
         case .serial, .telnet:
             let view = StreamTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
@@ -115,11 +130,11 @@ final class TerminalSession: ObservableObject, Identifiable {
             }
             var env = Terminal.getEnvironmentVariables(termName: "xterm-256color")
             env.append("TERM_PROGRAM=Barq")
-            view.startProcess(
-                executable: "/usr/bin/ssh",
-                args: SSHCommandBuilder.sshArguments(for: profile),
-                environment: env
-            )
+            let executable = launch == .sftp ? "/usr/bin/sftp" : "/usr/bin/ssh"
+            let args = launch == .sftp
+                ? SSHCommandBuilder.sftpArguments(for: profile)
+                : SSHCommandBuilder.sshArguments(for: profile)
+            view.startProcess(executable: executable, args: args, environment: env)
             status = .connected
         case .serial:
             let backend = SerialBackend(
@@ -217,6 +232,21 @@ final class TerminalSession: ObservableObject, Identifiable {
 
     func readOutput(maxBytes: Int = 8192) -> String {
         buffer.tail(maxBytes)
+    }
+
+    /// Upload dropped files to the remote working directory over SCP.
+    private func handleDroppedFiles(_ paths: [String]) {
+        let remoteDir = currentDirectory ?? "."
+        for path in paths {
+            let name = (path as NSString).lastPathComponent
+            terminalView.feed(text: "\r\n\u{1B}[36m⇡ Uploading \(name) → \(remoteDir)…\u{1B}[0m\r\n")
+            SCPUploader.upload(localPath: path, remoteDir: remoteDir, profile: profile) { [weak self] ok, err in
+                let msg = ok
+                    ? "\u{1B}[32m✓ Uploaded \(name)\u{1B}[0m"
+                    : "\u{1B}[31m✗ Upload failed: \(err.trimmingCharacters(in: .whitespacesAndNewlines))\u{1B}[0m"
+                self?.terminalView.feed(text: "\(msg)\r\n")
+            }
+        }
     }
 
     /// Show SwiftTerm's built-in find bar (⌘F).

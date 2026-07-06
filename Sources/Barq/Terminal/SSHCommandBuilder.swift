@@ -73,6 +73,26 @@ enum SSHCommandBuilder {
         return args
     }
 
+    /// sftp arguments for an interactive SFTP session using a profile.
+    static func sftpArguments(for profile: ConnectionProfile) -> [String] {
+        var args: [String] = []
+        if profile.port != 22 {
+            args += ["-P", String(profile.port)]
+        }
+        if profile.authType == .key, !profile.identityFile.isEmpty {
+            args += ["-i", expandTilde(profile.identityFile), "-o", "IdentitiesOnly=yes"]
+        }
+        if profile.jumpHost.enabled, !profile.jumpHost.host.isEmpty {
+            args += ["-J", profile.jumpHost.proxyJumpValue]
+        }
+        if profile.legacySCP {
+            args += ["-o", "HostKeyAlgorithms=+ssh-rsa", "-o", "PubkeyAcceptedKeyTypes=+ssh-rsa"]
+        }
+        let user = profile.username.isEmpty ? "" : "\(profile.username)@"
+        args.append("\(user)\(profile.host)")
+        return args
+    }
+
     static func expandTilde(_ path: String) -> String {
         (path as NSString).expandingTildeInPath
     }
