@@ -17,6 +17,15 @@ struct BarqApp: App {
                     if let id = state.selectedTabID { state.closeTab(id: id) }
                 }
                 .keyboardShortcut("w", modifiers: .command)
+                Divider()
+                Button("Import Profiles…") { importProfiles() }
+                Button("Export Profiles…") { exportProfiles() }
+            }
+            CommandGroup(after: .textEditing) {
+                Button("Find…") {
+                    state.focusedSession?.showFindBar()
+                }
+                .keyboardShortcut("f", modifiers: .command)
             }
             CommandMenu("Shell") {
                 Button("Split Right") { state.splitFocused(direction: .horizontal) }
@@ -58,6 +67,27 @@ struct BarqApp: App {
             SettingsView()
         }
     }
+}
+
+@MainActor
+private func exportProfiles() {
+    let panel = NSSavePanel()
+    panel.nameFieldStringValue = "barq-profiles.json"
+    panel.allowedContentTypes = [.json]
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    if let data = try? AppState.shared.profiles.exportJSON() {
+        try? data.write(to: url, options: .atomic)
+    }
+}
+
+@MainActor
+private func importProfiles() {
+    let panel = NSOpenPanel()
+    panel.allowedContentTypes = [.json]
+    panel.allowsMultipleSelection = false
+    guard panel.runModal() == .OK, let url = panel.url,
+          let data = try? Data(contentsOf: url) else { return }
+    try? AppState.shared.profiles.importJSON(data, merge: true)
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {

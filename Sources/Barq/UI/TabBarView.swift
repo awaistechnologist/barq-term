@@ -15,6 +15,20 @@ struct TabBarView: View {
                             select: { state.selectedTabID = tab.id },
                             close: { state.closeTab(id: tab.id) }
                         )
+                        .contextMenu {
+                            Button("Rename…") { promptRename(tab: tab) }
+                            Button("Close") { state.closeTab(id: tab.id) }
+                            Button("Close Others") { state.closeOtherTabs(keeping: tab.id) }
+                            Divider()
+                            Button("Split Right") {
+                                state.selectedTabID = tab.id
+                                state.splitFocused(direction: .horizontal)
+                            }
+                            Button("Split Down") {
+                                state.selectedTabID = tab.id
+                                state.splitFocused(direction: .vertical)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 6)
@@ -42,6 +56,20 @@ struct TabBarView: View {
         }
         .frame(height: 34)
         .background(.bar)
+    }
+
+    private func promptRename(tab: TerminalTab) {
+        let alert = NSAlert()
+        alert.messageText = "Rename Tab"
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = state.title(for: tab)
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        if alert.runModal() == .alertFirstButtonReturn {
+            state.renameTab(id: tab.id, to: field.stringValue.trimmingCharacters(in: .whitespaces))
+        }
     }
 }
 

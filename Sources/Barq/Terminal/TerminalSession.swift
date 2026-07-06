@@ -38,6 +38,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     private(set) var terminalView: TerminalView!
     private var streamBackend: StreamBackend?
     private var pendingPassword: String?
+    private var processAdapter: ProcessEventAdapter?
 
     init(id: String, profile: ConnectionProfile, origin: SessionOrigin, settings: SettingsStore) {
         self.id = id
@@ -64,6 +65,9 @@ final class TerminalSession: ObservableObject, Identifiable {
                     self?.streamBackend = nil
                 }
             }
+            let adapter = ProcessEventAdapter(session: self)
+            view.processDelegate = adapter
+            processAdapter = adapter
             terminalView = view
         case .serial, .telnet:
             let view = StreamTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
@@ -215,6 +219,13 @@ final class TerminalSession: ObservableObject, Identifiable {
         buffer.tail(maxBytes)
     }
 
+    /// Show SwiftTerm's built-in find bar (⌘F).
+    func showFindBar() {
+        let item = NSMenuItem()
+        item.tag = Int(NSFindPanelAction.showFindPanel.rawValue)
+        terminalView.performFindPanelAction(item)
+    }
+
     func terminate() {
         switch terminalView {
         case let view as ProcessTerminalView:
@@ -233,5 +244,41 @@ extension ProfileStore {
     /// store through — passwords are keyed by profile id in the Keychain.
     static func sharedPassword(for profile: ConnectionProfile) -> String? {
         Keychain.get(profile.passwordKeychainKey)
+    }
+}
+
+/// Routes LocalProcessTerminalView delegate callbacks (title, OSC7 cwd)
+/// back into the session.
+final class ProcessEventAdapter: LocalProcessTerminalViewDelegate {
+    private weak var session: TerminalSession?
+
+    init(session: TerminalSession) {
+        self.session = session
+    }
+
+    func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
+
+    func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
+        Task { @MainActor [weak session] in
+            guard let session, !title.isEmpty else { return }
+            if session.profile.kind == .local || session.profile.name.isEmpty {
+                session.title = title
+            }
+        }
+    }
+
+    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
+        let path = OSC7.parsePath(directory)
+        Task { @MainActor [weak session] in
+            guard let session, let path else { return }
+            session.currentDirectory = path
+            if session.profile.kind == .local {
+                session.title = (path as NSString).lastPathComponent
+            }
+        }
+    }
+
+    func processTerminated(source: TerminalView, exitCode: Int32?) {
+        // Handled by ProcessTerminalView.onExit.
     }
 }

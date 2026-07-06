@@ -68,7 +68,9 @@ final class AppState: ObservableObject {
 
     @Published var tabs: [TerminalTab] = []
     @Published var selectedTabID: UUID?
-    @Published var sidebarVisible = true
+    @Published var sidebarVisible = UserDefaults.standard.object(forKey: "sidebarVisible") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(sidebarVisible, forKey: "sidebarVisible") }
+    }
     @Published var aiPanelVisible = false
     @Published var paletteVisible = false
     @Published var composerVisible = false
@@ -101,6 +103,23 @@ final class AppState: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        // Re-style every open terminal when appearance settings change.
+        settings.$themeID
+            .dropFirst()
+            .map { _ in () }
+            .merge(with: settings.$fontName.dropFirst().map { _ in () },
+                   settings.$fontSize.dropFirst().map { _ in () })
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.restyleAllSessions() }
+            .store(in: &cancellables)
+    }
+
+    private func restyleAllSessions() {
+        let theme = settings.theme
+        for session in sessions.sessions {
+            session.terminalView.applyBarqStyle(theme: theme, settings: settings)
+        }
     }
 
     func startServices() {
@@ -181,6 +200,18 @@ final class AppState: ObservableObject {
         tab.root = tab.root.splitting(sessionID: focused.id, with: session.id, direction: direction)
         tab.focusedSessionID = session.id
         tabs = tabs.map { $0.id == tab.id ? tab : $0 }
+    }
+
+    func renameTab(id: UUID, to title: String) {
+        guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[idx].customTitle = title.isEmpty ? nil : title
+    }
+
+    func closeOtherTabs(keeping id: UUID) {
+        for tab in tabs where tab.id != id {
+            closeTab(id: tab.id)
+        }
+        selectedTabID = id
     }
 
     func title(for tab: TerminalTab) -> String {

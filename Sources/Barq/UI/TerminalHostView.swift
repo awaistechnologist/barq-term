@@ -15,12 +15,19 @@ struct TerminalRepresentable: NSViewRepresentable {
     func makeNSView(context: Context) -> TerminalView {
         let view = session.terminalView!
         let sessionID = session.id
-        // Focus tracking: clicking a pane marks its session focused.
-        context.coordinator.clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { [weak view] event in
+        // Focus tracking (left click) + middle-click paste.
+        context.coordinator.clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .otherMouseDown]) { [weak view, weak session] event in
             if let view, let window = view.window, event.window === window {
                 let point = view.convert(event.locationInWindow, from: nil)
                 if view.bounds.contains(point) {
-                    NotificationCenter.default.post(name: .barqSessionFocused, object: sessionID)
+                    if event.type == .leftMouseDown {
+                        NotificationCenter.default.post(name: .barqSessionFocused, object: sessionID)
+                    } else if event.buttonNumber == 2 {
+                        if let text = NSPasteboard.general.string(forType: .string) {
+                            Task { @MainActor in session?.paste(text) }
+                        }
+                        return nil // consume the middle click
+                    }
                 }
             }
             return event
