@@ -58,7 +58,14 @@ struct ContentView: View {
                     state.newLocalTab()
                 }
             }
+            state.focusActiveTerminal()
         }
+        // Keep keyboard focus in the terminal as tabs change and overlays close.
+        .onChange(of: state.selectedTabID) { _ in state.focusActiveTerminal() }
+        .onChange(of: state.paletteVisible) { visible in if !visible { state.focusActiveTerminal() } }
+        .onChange(of: state.composerVisible) { visible in if !visible { state.focusActiveTerminal() } }
+        .onChange(of: state.globalSearchVisible) { visible in if !visible { state.focusActiveTerminal() } }
+        .onChange(of: state.aiPanelVisible) { visible in if !visible { state.focusActiveTerminal() } }
     }
 
     @ViewBuilder

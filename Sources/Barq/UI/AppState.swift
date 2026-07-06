@@ -284,6 +284,7 @@ final class AppState: ObservableObject {
         tabs.append(tab)
         selectedTabID = tab.id
         persistSessions()
+        focusActiveTerminal()
     }
 
     // MARK: Tab groups
@@ -465,11 +466,31 @@ final class AppState: ObservableObject {
         tab.root = tab.root.splitting(sessionID: focused.id, with: session.id, direction: direction)
         tab.focusedSessionID = session.id
         tabs = tabs.map { $0.id == tab.id ? tab : $0 }
+        focusActiveTerminal()
     }
 
     func focusSession(_ sessionID: String) {
         if let idx = tabs.firstIndex(where: { $0.root.sessionIDs.contains(sessionID) }) {
             tabs[idx].focusedSessionID = sessionID
+        }
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .barqFocusTerminal, object: sessionID)
+        }
+    }
+
+    /// The session that should hold keyboard focus: the focused pane of the
+    /// selected tab. Pure so it can be unit-tested without the singleton.
+    nonisolated static func activeSessionID(tabs: [TerminalTab], selectedTabID: UUID?) -> String? {
+        tabs.first { $0.id == selectedTabID }?.focusedSessionID
+    }
+
+    /// Give keyboard focus to the active pane of the selected tab. Called on tab
+    /// switch, new session, split, and when an overlay/panel is dismissed — so
+    /// typing lands in the terminal, not the sidebar search field.
+    func focusActiveTerminal() {
+        guard let sid = Self.activeSessionID(tabs: tabs, selectedTabID: selectedTabID) else { return }
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .barqFocusTerminal, object: sid)
         }
     }
 
@@ -502,4 +523,7 @@ final class AppState: ObservableObject {
 
 extension Notification.Name {
     static let barqSessionFocused = Notification.Name("BarqSessionFocused")
+    /// Request that a specific session's terminal become the window's first
+    /// responder (object == sessionID string).
+    static let barqFocusTerminal = Notification.Name("BarqFocusTerminal")
 }
