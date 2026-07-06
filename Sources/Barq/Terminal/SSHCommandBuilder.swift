@@ -13,7 +13,10 @@ enum SSHCommandBuilder {
         if profile.authType == .key, !profile.identityFile.isEmpty {
             args += ["-i", expandTilde(profile.identityFile), "-o", "IdentitiesOnly=yes"]
         }
-        if profile.jumpHost.enabled, !profile.jumpHost.host.isEmpty {
+        if profile.cloudflareAccess {
+            // Zero-trust tunnel: ssh pipes through `cloudflared access ssh`.
+            args += ["-o", "ProxyCommand=cloudflared access ssh --hostname %h"]
+        } else if profile.jumpHost.enabled, !profile.jumpHost.host.isEmpty {
             args += ["-J", profile.jumpHost.proxyJumpValue]
             if !profile.jumpHost.identityFile.isEmpty {
                 // Applies the key to the whole chain; ssh will offer it to both hops.

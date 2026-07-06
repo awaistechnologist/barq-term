@@ -67,6 +67,9 @@ struct PortForward: Codable, Identifiable, Hashable {
     var targetHost: String = ""
     var targetPort: Int = 80
     var enabled: Bool = true
+    /// For dynamic (SOCKS5) rules: how the "Launch Chrome" button filters hosts.
+    var filterMode: ProxyFilterMode = .all
+    var filterHosts: [String] = []
 
     /// The ssh CLI argument for this rule, e.g. `-L 127.0.0.1:8080:host:80`
     var sshArguments: [String] {
@@ -119,6 +122,9 @@ struct ConnectionProfile: Codable, Identifiable, Hashable {
     var legacySCP: Bool = false // -O + HostKeyAlgorithms=+ssh-rsa for dropbear/BusyBox
     var jumpHost: JumpHost = JumpHost()
     var portForwards: [PortForward] = []
+    /// Cloudflare Access: tunnel via `cloudflared access ssh`. Mutually
+    /// exclusive with jumpHost.
+    var cloudflareAccess: Bool = false
 
     // Serial
     var serialDevice: String = ""

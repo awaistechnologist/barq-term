@@ -118,6 +118,18 @@ private struct ProfileRow: View {
 
             Spacer(minLength: 4)
 
+            // One-click Chrome launch for profiles with a dynamic SOCKS rule.
+            if ProxyService.canLaunchChrome(profile) {
+                Button {
+                    ProxyService.launchChrome(for: profile)
+                } label: {
+                    Image(systemName: "globe")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.borderless)
+                .help("Launch Chrome through this profile's SOCKS proxy")
+            }
+
             // AI access chip — one click grants/revokes agent access.
             Button {
                 var updated = profile

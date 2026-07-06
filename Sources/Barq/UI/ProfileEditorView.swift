@@ -60,8 +60,23 @@ struct ProfileEditorView: View {
                         }
                         Toggle("Legacy SCP (dropbear / BusyBox)", isOn: $draft.legacySCP)
                     }
+                    Section("Cloudflare Access") {
+                        Toggle("Tunnel via cloudflared (zero-trust)", isOn: $draft.cloudflareAccess)
+                            .onChange(of: draft.cloudflareAccess) { on in
+                                if on { draft.jumpHost.enabled = false }
+                            }
+                        if draft.cloudflareAccess {
+                            Text("Requires `cloudflared` installed. Uses ProxyCommand: cloudflared access ssh --hostname %h")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     Section("Jump Host") {
                         Toggle("Connect through a jump host", isOn: $draft.jumpHost.enabled)
+                            .disabled(draft.cloudflareAccess)
+                            .onChange(of: draft.jumpHost.enabled) { on in
+                                if on { draft.cloudflareAccess = false }
+                            }
                         if draft.jumpHost.enabled {
                             TextField("Jump host", text: $draft.jumpHost.host)
                             TextField("Jump port", value: $draft.jumpHost.port, format: .number)
@@ -92,6 +107,23 @@ struct ProfileEditorView: View {
                                     Image(systemName: "minus.circle")
                                 }
                                 .buttonStyle(.borderless)
+                            }
+                            if forward.kind == .dynamic {
+                                HStack {
+                                    Picker("Chrome routing", selection: $forward.filterMode) {
+                                        ForEach(ProxyFilterMode.allCases) { m in
+                                            Text(m.label).tag(m)
+                                        }
+                                    }
+                                    .frame(width: 220)
+                                }
+                                if forward.filterMode != .all {
+                                    TextField("Hosts (comma-separated: *.corp.com, 10.0.0.0/8)", text: Binding(
+                                        get: { forward.filterHosts.joined(separator: ", ") },
+                                        set: { forward.filterHosts = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }
+                                    ))
+                                    .font(.system(size: 11, design: .monospaced))
+                                }
                             }
                         }
                         Button {

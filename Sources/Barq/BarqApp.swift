@@ -20,6 +20,8 @@ struct BarqApp: App {
                 Divider()
                 Button("Import Profiles…") { importProfiles() }
                 Button("Export Profiles…") { exportProfiles() }
+                Button("Import from ~/.ssh/config…") { importSSHConfig() }
+                Button("Export to ssh config…") { exportSSHConfig() }
             }
             CommandGroup(after: .textEditing) {
                 Button("Find…") {
@@ -88,6 +90,32 @@ private func importProfiles() {
     guard panel.runModal() == .OK, let url = panel.url,
           let data = try? Data(contentsOf: url) else { return }
     try? AppState.shared.profiles.importJSON(data, merge: true)
+}
+
+@MainActor
+private func importSSHConfig() {
+    let panel = NSOpenPanel()
+    panel.allowsMultipleSelection = false
+    panel.canChooseFiles = true
+    panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
+    panel.showsHiddenFiles = true
+    guard panel.runModal() == .OK, let url = panel.url,
+          let text = try? String(contentsOf: url, encoding: .utf8) else { return }
+    for profile in SSHConfigCodec.parse(text) {
+        if AppState.shared.profiles.profile(named: profile.name) == nil {
+            AppState.shared.profiles.upsert(profile)
+        }
+    }
+}
+
+@MainActor
+private func exportSSHConfig() {
+    let panel = NSSavePanel()
+    panel.nameFieldStringValue = "config"
+    panel.showsHiddenFiles = true
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    let text = SSHConfigCodec.generate(AppState.shared.profiles.profiles)
+    try? text.write(to: url, atomically: true, encoding: .utf8)
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {

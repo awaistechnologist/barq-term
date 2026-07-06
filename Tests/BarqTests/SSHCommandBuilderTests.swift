@@ -72,6 +72,22 @@ import Foundation
         #expect(scp.last == "pi@10.0.0.5:/opt/f.bin")
     }
 
+    @Test func testCloudflareAccessProxyCommand() {
+        var profile = makeProfile()
+        profile.cloudflareAccess = true
+        let args = SSHCommandBuilder.sshArguments(for: profile)
+        #expect(args.contains("ProxyCommand=cloudflared access ssh --hostname %h"))
+        #expect(!args.contains("-J"))
+    }
+
+    @Test func testCloudflareOverridesJumpHost() {
+        var profile = makeProfile()
+        profile.cloudflareAccess = true
+        profile.jumpHost = JumpHost(enabled: true, host: "b", port: 22, username: "u", identityFile: "")
+        let args = SSHCommandBuilder.sshArguments(for: profile)
+        #expect(!args.contains("-J"), "cloudflare takes precedence over jump host")
+    }
+
     @Test func testSCPDownloadDirection() {
         let scp = SSHCommandBuilder.scpArguments(for: makeProfile(), localPath: "/tmp/out.log", remotePath: "/var/log/sys.log", upload: false)
         #expect(scp.last == "/tmp/out.log")
