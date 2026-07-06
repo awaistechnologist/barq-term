@@ -139,6 +139,12 @@ private struct MCPSettings: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
+            Section("Guardrails") {
+                Toggle("Confirm dangerous agent commands", isOn: $settings.agentGuardrails)
+                Text("When on, an agent running a destructive command (rm -rf, mkfs, force push, database drops, pipe-to-shell, power changes…) triggers a native approval prompt before it executes.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
             Section("Register with Claude") {
                 Text(configSnippet)
                     .font(.system(size: 11, design: .monospaced))

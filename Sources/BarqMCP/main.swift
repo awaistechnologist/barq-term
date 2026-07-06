@@ -186,6 +186,13 @@ let tools: [ToolDef] = [
     ToolDef(name: "disconnect",
             description: "Close a terminal session.",
             schema: obj(["session_id": str("Session id")], required: ["session_id"])),
+    ToolDef(name: "run_on_tag",
+            description: "Fleet operation: run one command on every AI-allowed profile that carries a given tag, and get back per-host output. Great for 'check X across all lab routers'. Supports ${BARQ:NAME} vault expansion. Dangerous commands may prompt the user.",
+            schema: obj([
+                "tag": str("Tag to target, e.g. LAB or ROUTERS"),
+                "command": str("Command to run on each matching host"),
+                "timeout": int("Per-host seconds to wait (default 30)")
+            ], required: ["tag", "command"])),
     ToolDef(name: "list_serial_ports",
             description: "List serial devices available on this Mac (/dev/cu.*, /dev/tty.*).",
             schema: obj([:])),

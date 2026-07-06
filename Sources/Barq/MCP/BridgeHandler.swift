@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 enum BridgeError: LocalizedError {
     case unknownMethod(String)
@@ -118,6 +119,7 @@ final class BridgeHandler {
             let id: String = try require(params, "session_id")
             let rawCommand: String = try require(params, "command")
             let timeout = params["timeout"] as? Double ?? 30
+            try await enforceGuardrails(rawCommand)
             // Vault expansion happens here — secrets are usable, never readable.
             let command = try await vault.expandVariables(in: rawCommand, agent: agentName)
             guard let session = await MainActor.run(body: { SessionManager.shared.session(id: id) }) else {
@@ -128,6 +130,13 @@ final class BridgeHandler {
                 "output": result.output,
                 "exit_code": result.exitCode.map(String.init) ?? "unknown"
             ]
+
+        case "run_on_tag":
+            let tag: String = try require(params, "tag")
+            let rawCommand: String = try require(params, "command")
+            let timeout = params["timeout"] as? Double ?? 30
+            try await enforceGuardrails(rawCommand)
+            return try await runOnTag(tag: tag, rawCommand: rawCommand, timeout: timeout)
 
         case "send_input":
             let id: String = try require(params, "session_id")
@@ -205,6 +214,53 @@ final class BridgeHandler {
     private func require<T>(_ params: [String: Any], _ key: String) throws -> T {
         guard let value = params[key] as? T else { throw BridgeError.missingParam(key) }
         return value
+    }
+
+    /// Prompt for confirmation on destructive agent commands when guardrails
+    /// are enabled. Throws (refusing the command) if the user denies.
+    private func enforceGuardrails(_ command: String) async throws {
+        guard await MainActor.run(body: { SettingsStore.shared.agentGuardrails }) else { return }
+        guard case .dangerous(let reason) = CommandGuard.classify(command) else { return }
+        let approved = await MainActor.run { () -> Bool in
+            let alert = NSAlert()
+            alert.messageText = "Allow agent to run a dangerous command?"
+            alert.informativeText = "Agent \"\(agentName)\" wants to run:\n\n\(command)\n\nDetected: \(reason)."
+            alert.alertStyle = .critical
+            alert.addButton(withTitle: "Allow")
+            alert.addButton(withTitle: "Deny")
+            NSApp.activate(ignoringOtherApps: true)
+            return alert.runModal() == .alertFirstButtonReturn
+        }
+        if !approved {
+            throw BridgeError.transferFailed("Command denied by the user (guardrail: \(reason)).")
+        }
+    }
+
+    /// Fleet op: open (or reuse) a session for every AI-allowed profile that
+    /// carries `tag`, run the command on each, and aggregate the results.
+    private func runOnTag(tag: String, rawCommand: String, timeout: Double) async throws -> Any {
+        let upperTag = tag.uppercased()
+        let matching = await MainActor.run {
+            profiles.profiles.filter { $0.aiAllowed && $0.tags.contains(upperTag) }
+        }
+        guard !matching.isEmpty else {
+            throw BridgeError.transferFailed("No AI-allowed profiles carry the tag '\(upperTag)'. Enable the AI chip on the relevant hosts first.")
+        }
+        var results: [[String: String]] = []
+        for profile in matching {
+            let command = try await vault.expandVariables(in: rawCommand, agent: agentName)
+            let session = await MainActor.run { SessionManager.shared.open(profile: profile, origin: .agent) }
+            // Give the connection a moment to establish.
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            let result = await session.runCommand(command, timeout: timeout)
+            results.append([
+                "profile": profile.name,
+                "target": profile.target,
+                "exit_code": result.exitCode.map(String.init) ?? "unknown",
+                "output": result.output
+            ])
+        }
+        return ["tag": upperTag, "hosts": String(matching.count), "results": results]
     }
 
     private func runProcess(_ path: String, args: [String], timeout: TimeInterval) async throws -> (exitCode: Int32, stdout: String, stderr: String) {

@@ -49,6 +49,10 @@ final class SettingsStore: ObservableObject {
     @Published var mcpEnabled: Bool {
         didSet { defaults.set(mcpEnabled, forKey: "mcpEnabled") }
     }
+    /// When on, dangerous agent commands require a native approval prompt.
+    @Published var agentGuardrails: Bool {
+        didSet { defaults.set(agentGuardrails, forKey: "agentGuardrails") }
+    }
 
     /// OpenRouter API key lives in the Keychain, not UserDefaults.
     var openRouterKey: String? {
@@ -74,6 +78,7 @@ final class SettingsStore: ObservableObject {
         ollamaModel = defaults.string(forKey: "ollamaModel") ?? ""
         openRouterModel = defaults.string(forKey: "openRouterModel") ?? "anthropic/claude-sonnet-4.5"
         mcpEnabled = defaults.object(forKey: "mcpEnabled") as? Bool ?? true
+        agentGuardrails = defaults.object(forKey: "agentGuardrails") as? Bool ?? true
     }
 
     var theme: BarqTheme { Themes.theme(id: themeID) }
