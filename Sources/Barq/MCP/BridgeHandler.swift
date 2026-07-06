@@ -60,6 +60,11 @@ final class BridgeHandler {
             profile.name = name
             profile.kind = kind
             profile.host = params["host"] as? String ?? ""
+            // Reject hosts that could be mistaken for ssh options (e.g.
+            // "-oProxyCommand=…") — defense in depth alongside the `--` guard.
+            if (kind == .ssh || kind == .telnet), !profile.host.isEmpty, !SSHCommandBuilder.isSafeHost(profile.host) {
+                throw BridgeError.transferFailed("Invalid host '\(profile.host)'. Hosts may not start with '-' or contain spaces/metacharacters.")
+            }
             profile.port = params["port"] as? Int ?? 22
             profile.username = params["username"] as? String ?? ""
             profile.identityFile = params["identity_file"] as? String ?? ""
@@ -119,15 +124,19 @@ final class BridgeHandler {
             let id: String = try require(params, "session_id")
             let rawCommand: String = try require(params, "command")
             let timeout = params["timeout"] as? Double ?? 30
-            try await enforceGuardrails(rawCommand)
-            // Vault expansion happens here — secrets are usable, never readable.
+            // Expand vault refs FIRST, then classify the *expanded* command, so
+            // a dangerous payload hidden in a vault variable can't smuggle past
+            // the guardrail (secrets are usable, never readable).
             let command = try await vault.expandVariables(in: rawCommand, agent: agentName)
+            try await enforceGuardrails(command)
             guard let session = await MainActor.run(body: { SessionManager.shared.session(id: id) }) else {
                 throw BridgeError.sessionNotFound(id)
             }
             let result = await session.runCommand(command, timeout: timeout)
+            // Redact any secret values that were echoed/printed before returning.
+            let safeOutput = await vault.redactSecrets(in: result.output)
             return [
-                "output": result.output,
+                "output": safeOutput,
                 "exit_code": result.exitCode.map(String.init) ?? "unknown"
             ]
 
@@ -135,7 +144,6 @@ final class BridgeHandler {
             let tag: String = try require(params, "tag")
             let rawCommand: String = try require(params, "command")
             let timeout = params["timeout"] as? Double ?? 30
-            try await enforceGuardrails(rawCommand)
             return try await runOnTag(tag: tag, rawCommand: rawCommand, timeout: timeout)
 
         case "send_input":
@@ -153,7 +161,8 @@ final class BridgeHandler {
             let maxBytes = params["max_bytes"] as? Int ?? 8192
             return try await MainActor.run {
                 guard let session = SessionManager.shared.session(id: id) else { throw BridgeError.sessionNotFound(id) }
-                return ["output": session.readOutput(maxBytes: maxBytes)]
+                // Redact secrets that may have been echoed into the scrollback.
+                return ["output": vault.redactSecrets(in: session.readOutput(maxBytes: maxBytes))]
             }
 
         case "disconnect":
@@ -217,20 +226,24 @@ final class BridgeHandler {
     }
 
     /// Prompt for confirmation on destructive agent commands when guardrails
-    /// are enabled. Throws (refusing the command) if the user denies.
+    /// are enabled. `command` is the already-vault-expanded command (so hidden
+    /// payloads are caught); the dialog shows a secret-redacted form. Throws
+    /// (refusing the command) if the user denies. Every decision is audited.
     private func enforceGuardrails(_ command: String) async throws {
         guard await MainActor.run(body: { SettingsStore.shared.agentGuardrails }) else { return }
         guard case .dangerous(let reason) = CommandGuard.classify(command) else { return }
+        let display = await vault.redactSecrets(in: command)
         let approved = await MainActor.run { () -> Bool in
             let alert = NSAlert()
             alert.messageText = "Allow agent to run a dangerous command?"
-            alert.informativeText = "Agent \"\(agentName)\" wants to run:\n\n\(command)\n\nDetected: \(reason)."
+            alert.informativeText = "Agent \"\(agentName)\" wants to run:\n\n\(display)\n\nDetected: \(reason)."
             alert.alertStyle = .critical
             alert.addButton(withTitle: "Allow")
             alert.addButton(withTitle: "Deny")
             NSApp.activate(ignoringOtherApps: true)
             return alert.runModal() == .alertFirstButtonReturn
         }
+        vault.logGuardrail(agent: agentName, command: display, reason: reason, allowed: approved)
         if !approved {
             throw BridgeError.transferFailed("Command denied by the user (guardrail: \(reason)).")
         }
@@ -246,9 +259,11 @@ final class BridgeHandler {
         guard !matching.isEmpty else {
             throw BridgeError.transferFailed("No AI-allowed profiles carry the tag '\(upperTag)'. Enable the AI chip on the relevant hosts first.")
         }
+        // Expand + classify once (the command is the same across hosts).
+        let command = try await vault.expandVariables(in: rawCommand, agent: agentName)
+        try await enforceGuardrails(command)
         var results: [[String: String]] = []
         for profile in matching {
-            let command = try await vault.expandVariables(in: rawCommand, agent: agentName)
             let session = await MainActor.run { SessionManager.shared.open(profile: profile, origin: .agent) }
             // Give the connection a moment to establish.
             try? await Task.sleep(nanoseconds: 900_000_000)
@@ -257,7 +272,7 @@ final class BridgeHandler {
                 "profile": profile.name,
                 "target": profile.target,
                 "exit_code": result.exitCode.map(String.init) ?? "unknown",
-                "output": result.output
+                "output": await vault.redactSecrets(in: result.output)
             ])
         }
         return ["tag": upperTag, "hosts": String(matching.count), "results": results]

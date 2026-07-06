@@ -2,10 +2,49 @@
 
 All notable changes to Barq are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.1] — 2026-07-06
+
+Security & correctness pass (full code/security/docs review). 136 tests.
+
+### Security
+- **Guardrails now classify the *expanded* command.** Vault expansion runs
+  before the dangerous-command check, so a destructive payload hidden in a vault
+  variable can no longer smuggle past the approval prompt.
+- **Secret values are redacted from all agent output.** Even if a `secret` is
+  echoed by the remote shell or printed by a command, it is scrubbed from
+  `run_command` / `read_output` / `run_on_tag` results before returning.
+- **SSH option-injection closed.** A `--` separator guards the destination and
+  hosts are validated (no leading `-`, no metacharacters), so a host like
+  `-oProxyCommand=…` can't be parsed as an ssh option. `add_profile` rejects
+  unsafe hosts.
+- **`barq://` deep links now require confirmation** before connecting/opening,
+  and ad-hoc ssh hosts are validated.
+- **Keychain items are `WhenUnlockedThisDeviceOnly`** (no iCloud sync / backup);
+  vault writes surface Keychain failures instead of silently succeeding.
+- **Guardrail decisions and vault access are persisted** to an append-only
+  on-disk audit log; support dir is `0700`; PAC host filters are JS-escaped.
+
+### Fixed
+- **Data race** on the Context Vault (agent reads ran off the main thread while
+  the UI mutated it) — vault agent methods are now main-actor isolated. This
+  also removes intermittent test failures.
+- **`run_command` no longer returns early** on slow/quiet shell commands
+  (e.g. `sleep 2 && ls`); the quiet-period fallback is limited to serial/telnet.
+- Serial teardown race (double-close) and a silent telnet receive-error hang.
+
+### Docs
+- Fixed stale test count in README, corrected MCP `serverInfo` version, and
+  qualified the "feature parity" claim (tab groups + FTP are intentionally out).
+- Added SECURITY.md, CONTRIBUTING.md, issue/PR templates.
+
 ## [0.2.0] — 2026-07-06
 
-Full feature parity with prateek-term, plus a set of modern and AI-native
-capabilities. 127 tests across 21 suites.
+Near-complete feature parity with prateek-term, plus a set of modern and
+AI-native capabilities. 127 tests across 21 suites.
+
+> Two prateek-term features are intentionally not carried over: **tab groups**
+> (tracked on the roadmap) and the **interactive FTP client** (modern macOS
+> ships no `ftp` binary; use SFTP instead).
 
 ### Added — parity
 - **OSC 7 working-directory tracking** — local tabs title themselves by folder and remember their cwd

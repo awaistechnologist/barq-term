@@ -97,10 +97,18 @@ final class SerialBackend: StreamBackend {
     }
 
     func close() {
-        teardown(message: nil)
+        // Route teardown onto the IO queue so fd/readSource mutations are
+        // serialized with the read handler (which may also call teardown on
+        // device disconnect). Avoids a double-close / double-onClosed race.
+        queue.async { [weak self] in self?.teardown(message: nil) }
     }
 
+    private var didClose = false
+
+    /// Must run on `queue`.
     private func teardown(message: String?) {
+        guard !didClose else { return }
+        didClose = true
         readSource?.cancel()
         readSource = nil
         if let message { onClosed?(message) }

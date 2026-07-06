@@ -67,9 +67,13 @@ final class TelnetBackend: StreamBackend {
                 self.onClosed?("Connection closed by remote host")
                 return
             }
-            if error == nil {
-                self.receiveLoop(connection)
+            if let error {
+                // A receive error that didn't transition the connection to
+                // .failed still needs to surface, or the session freezes silently.
+                self.onClosed?("Telnet receive error: \(error.localizedDescription)")
+                return
             }
+            self.receiveLoop(connection)
         }
     }
 

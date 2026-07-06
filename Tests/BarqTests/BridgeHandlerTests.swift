@@ -93,6 +93,15 @@ import Foundation
         #expect(created?.tags == ["LAB", "IOT"], "tags are normalized to uppercase")
     }
 
+    @Test func addProfileRejectsOptionInjectionHost() async {
+        let (handler, _, _) = makeHandler()
+        await #expect(throws: BridgeError.self, "hosts that look like ssh options must be rejected") {
+            _ = try await handler.handle(method: "add_profile", params: [
+                "name": "evil", "kind": "ssh", "host": "-oProxyCommand=touch /tmp/pwned"
+            ])
+        }
+    }
+
     @Test func removeProfileByName() async throws {
         let (handler, profiles, _) = makeHandler()
         var profile = ConnectionProfile()

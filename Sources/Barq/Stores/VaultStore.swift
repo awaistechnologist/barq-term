@@ -7,6 +7,7 @@ enum VaultError: LocalizedError {
     case notFound(String)
     case denied(String)
     case secretValue(String)
+    case keychainFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -18,6 +19,8 @@ enum VaultError: LocalizedError {
             return "Access to vault variable '\(name)' was denied by the user."
         case .secretValue(let name):
             return "Vault variable '\(name)' is a secret. Its value can be used inside commands via ${BARQ:\(name)} but is never returned in plaintext."
+        case .keychainFailed(let name):
+            return "Failed to store vault variable '\(name)' in the macOS Keychain."
         }
     }
 }
@@ -60,7 +63,8 @@ final class VaultStore: ObservableObject {
     @discardableResult
     func set(name: String, value: String, summary: String, policy: VaultPolicy, scope: VaultScope = .global) throws -> VaultItem {
         guard VaultItem.isValidName(name) else { throw VaultError.invalidName(name) }
-        Keychain.set(value, for: "vault.\(name)")
+        // Surface Keychain failures instead of silently "storing" nothing.
+        guard Keychain.set(value, for: "vault.\(name)") else { throw VaultError.keychainFailed(name) }
         if var existing = item(named: name) {
             existing.summary = summary
             existing.policy = policy
@@ -91,6 +95,9 @@ final class VaultStore: ObservableObject {
 
     /// Value read on behalf of an AI agent. Enforces the item's policy;
     /// `.approval` items block on a native prompt.
+    /// `@MainActor` so reads of `items`/Keychain never race the UI (which
+    /// mutates the store on the main thread).
+    @MainActor
     func agentRead(name: String, agent: String) async throws -> String {
         guard let item = item(named: name) else { throw VaultError.notFound(name) }
         switch item.policy {
@@ -113,6 +120,7 @@ final class VaultStore: ObservableObject {
     /// Expand `${BARQ:NAME}` references inside a command string on behalf of an
     /// agent. Secrets ARE expanded (that is the whole point — usable, not
     /// readable); approval items prompt; unknown names throw.
+    @MainActor
     func expandVariables(in command: String, agent: String) async throws -> String {
         var result = command
         let regex = try NSRegularExpression(pattern: #"\$\{BARQ:([A-Z][A-Z0-9_]*)\}"#)
@@ -138,6 +146,27 @@ final class VaultStore: ObservableObject {
         return result
     }
 
+    /// Redact every `secret`-policy value from a string before it is returned
+    /// to an agent over the bridge. This is the defense-in-depth backstop for
+    /// the "secrets are usable but never readable" guarantee: even if a secret
+    /// is echoed by the remote shell or printed by the command itself, it is
+    /// scrubbed from `run_command` / `read_output` / `run_on_tag` output.
+    @MainActor
+    func redactSecrets(in text: String) -> String {
+        var result = text
+        for item in items where item.policy == .secret {
+            guard let value = value(of: item.name), value.count >= 3 else { continue }
+            result = result.replacingOccurrences(of: value, with: "‹redacted:\(item.name)›")
+        }
+        return result
+    }
+
+    /// Record a guardrail decision (dangerous agent command allowed/denied) in
+    /// the same audit trail as vault access.
+    func logGuardrail(agent: String, command: String, reason: String, allowed: Bool) {
+        audit(name: "cmd:\(reason)", agent: agent, action: allowed ? "allow-dangerous" : "deny-dangerous", allowed: allowed)
+    }
+
     @MainActor
     private func approvalAlert(item: VaultItem, agent: String, forUse: Bool) -> Bool {
         let alert = NSAlert()
@@ -161,10 +190,31 @@ final class VaultStore: ObservableObject {
 
     private func audit(name: String, agent: String, action: String, allowed: Bool) {
         let entry = VaultAuditEntry(date: Date(), agent: agent, variable: name, action: action, allowed: allowed)
+        appendAuditLine(entry)
         DispatchQueue.main.async {
             self.auditLog.append(entry)
             if self.auditLog.count > 500 { self.auditLog.removeFirst(self.auditLog.count - 500) }
         }
+    }
+
+    /// Append-only on-disk audit trail so agent access survives restarts and the
+    /// in-memory 500-entry cap can't erase forensic history.
+    private func appendAuditLine(_ entry: VaultAuditEntry) {
+        let iso = ISO8601DateFormatter().string(from: entry.date)
+        let line = "\(iso)\t\(entry.agent)\t\(entry.action)\t\(entry.variable)\t\(entry.allowed ? "allowed" : "denied")\n"
+        guard let data = line.data(using: .utf8) else { return }
+        let url = auditFileURL
+        if let handle = try? FileHandle(forWritingTo: url) {
+            defer { try? handle.close() }
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+        } else {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+
+    private var auditFileURL: URL {
+        fileURL.deletingLastPathComponent().appendingPathComponent("vault-audit.log")
     }
 
     /// Agent-facing discovery listing: names, descriptions and policies —

@@ -92,7 +92,7 @@ If the variable were policy `approval`, you'd get a native prompt before the rea
 TDD is the house style — the logic layer is fully covered and the suite runs in ~2s:
 
 ```bash
-./scripts/test.sh                      # full suite (66 tests / 10 suites)
+./scripts/test.sh                      # full suite (127 tests / 21 suites)
 ./scripts/test.sh --filter VaultStore  # one suite
 swift build                            # app + barq-mcp
 ```

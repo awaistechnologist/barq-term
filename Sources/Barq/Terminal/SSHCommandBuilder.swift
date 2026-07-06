@@ -4,6 +4,18 @@ import Foundation
 /// Pure functions — unit tested.
 enum SSHCommandBuilder {
 
+    /// A host is safe to pass to ssh/scp/sftp only if it can't be mistaken for
+    /// an option (leading `-`) and contains no whitespace or shell/URL
+    /// metacharacters. Used both to validate profiles at creation and as a
+    /// belt-and-suspenders guard alongside the `--` option terminator.
+    static func isSafeHost(_ host: String) -> Bool {
+        guard !host.isEmpty, !host.hasPrefix("-") else { return false }
+        // Hostnames / IPs / IPv6 in brackets: letters, digits, . : - [ ] % only.
+        let allowed = CharacterSet(charactersIn:
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.:-[]%")
+        return host.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+
     static func sshArguments(for profile: ConnectionProfile) -> [String] {
         var args: [String] = []
 
@@ -39,6 +51,9 @@ enum SSHCommandBuilder {
         if !profile.username.isEmpty {
             destination = "\(profile.username)@\(profile.host)"
         }
+        // `--` terminates option parsing so a host like "-oProxyCommand=…"
+        // can never be interpreted as an ssh option (option injection).
+        args.append("--")
         args.append(destination)
         return args
     }
@@ -65,6 +80,7 @@ enum SSHCommandBuilder {
 
         let user = profile.username.isEmpty ? "" : "\(profile.username)@"
         let remote = "\(user)\(profile.host):\(remotePath)"
+        args.append("--")
         if upload {
             args += [expandTilde(localPath), remote]
         } else {

@@ -50,7 +50,10 @@ final class SessionRecorder {
         defer { lock.unlock() }
         guard !isRecording else { return url }
         let stamp = Int(now().timeIntervalSince1970)
-        let safe = title.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: " ", with: "_")
+        // Strict allowlist so a session title can never influence the path.
+        let allowed = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+        var safe = String(title.map { allowed.contains($0) ? $0 : "_" })
+        if safe.isEmpty { safe = "session" }
         let fileURL = directory.appendingPathComponent("barq-\(safe)-\(stamp).cast")
         FileManager.default.createFile(atPath: fileURL.path, contents: nil)
         guard let handle = try? FileHandle(forWritingTo: fileURL) else { return nil }

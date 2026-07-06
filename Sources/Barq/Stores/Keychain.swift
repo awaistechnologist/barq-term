@@ -19,7 +19,9 @@ enum Keychain {
         if status == errSecItemNotFound {
             var add = query
             add[kSecValueData as String] = data
-            add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+            // ThisDeviceOnly: never synced to iCloud Keychain or included in
+            // backups, and only readable while the device is unlocked.
+            add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
         }
         return status == errSecSuccess

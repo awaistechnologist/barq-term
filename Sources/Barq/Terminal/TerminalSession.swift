@@ -202,12 +202,17 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     /// Run a command and await its output using the marker technique.
-    /// Falls back to a quiet-period capture for targets without a POSIX shell.
+    ///
+    /// For POSIX-shell targets (local/ssh) we always wait for the exit-code
+    /// marker, so a command that is merely slow or quiet (`sleep 2 && ls`) is
+    /// never cut short. Only serial/telnet devices — which lack `$?`/`printf`
+    /// and never emit a marker — use the quiet-period fallback.
     func runCommand(_ command: String, timeout: TimeInterval = 30) async -> (output: String, exitCode: Int?) {
         let token = CommandMarker.makeToken()
         let startOffset = buffer.totalReceived
         send(CommandMarker.wrap(command: command, token: token) + "\r")
 
+        let usesQuietFallback = (profile.kind == .serial || profile.kind == .telnet)
         let deadline = Date().addingTimeInterval(timeout)
         var lastTotal = buffer.totalReceived
         var quietTicks = 0
@@ -219,16 +224,18 @@ final class TerminalSession: ObservableObject, Identifiable {
             if result.done {
                 return (result.payload, result.exitCode)
             }
-            // Fallback: if output has been quiet for ~1.5s and we got *something*,
-            // return it (devices without $?/printf, e.g. some network gear).
-            if buffer.totalReceived == lastTotal {
-                quietTicks += 1
-                if quietTicks > 12, buffer.totalReceived > startOffset {
-                    return (result.payload, nil)
+            // Quiet-period fallback for marker-less devices only. Never applied
+            // to shells, where silence just means the command is still running.
+            if usesQuietFallback {
+                if buffer.totalReceived == lastTotal {
+                    quietTicks += 1
+                    if quietTicks > 12, buffer.totalReceived > startOffset {
+                        return (result.payload, nil)
+                    }
+                } else {
+                    quietTicks = 0
+                    lastTotal = buffer.totalReceived
                 }
-            } else {
-                quietTicks = 0
-                lastTotal = buffer.totalReceived
             }
         }
         let (raw, _) = buffer.since(offset: startOffset)
@@ -255,7 +262,9 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     private nonisolated func recordSlice(_ slice: ArraySlice<UInt8>) {
-        guard recorder.isRecording else { return }
+        // No unlocked `isRecording` fast-path: record() re-checks under its own
+        // lock, so this is safe when called from the serial/telnet IO queue
+        // while the main thread toggles recording.
         recorder.record(String(decoding: slice, as: UTF8.self))
     }
 

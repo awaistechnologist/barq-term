@@ -140,4 +140,19 @@ import Foundation
         let pac = ChromeProxyLauncher.pacScript(port: 1080, hosts: [])
         #expect(pac.contains("return \"DIRECT\""))
     }
+
+    @Test func pacEscapesJSInjection() {
+        // A host containing a quote must not be able to break out of the JS
+        // string literal and inject code into the PAC.
+        let malicious = "evil\" || true || \"x"
+        let pac = ChromeProxyLauncher.pacScript(port: 1080, hosts: [malicious])
+        #expect(!pac.contains("\" || true || \""), "raw injection payload must not appear unescaped")
+        #expect(pac.contains("\\\""), "quotes are backslash-escaped")
+    }
+
+    @Test func jsEscapeHandlesQuotesBackslashesNewlines() {
+        #expect(ChromeProxyLauncher.jsEscape("a\"b") == "a\\\"b")
+        #expect(ChromeProxyLauncher.jsEscape("a\\b") == "a\\\\b")
+        #expect(ChromeProxyLauncher.jsEscape("a\nb") == "ab")
+    }
 }

@@ -48,6 +48,15 @@ enum ChromeProxyLauncher {
 
     /// PAC script: listed hosts (exact, *.wildcard, or CIDR) go through the
     /// SOCKS proxy; everything else DIRECT.
+    /// Escape a value for safe inclusion inside a double-quoted JS string in the
+    /// PAC script, so a host like `x" || true || "` can't inject JS.
+    static func jsEscape(_ s: String) -> String {
+        s.replacingOccurrences(of: "\\", with: "\\\\")
+         .replacingOccurrences(of: "\"", with: "\\\"")
+         .replacingOccurrences(of: "\n", with: "")
+         .replacingOccurrences(of: "\r", with: "")
+    }
+
     static func pacScript(port: Int, hosts: [String]) -> String {
         var conditions: [String] = []
         for host in hosts where !host.isEmpty {
@@ -55,14 +64,14 @@ enum ChromeProxyLauncher {
                 let parts = host.split(separator: "/")
                 if parts.count == 2, let bits = Int(parts[1]) {
                     let mask = cidrMask(bits)
-                    conditions.append("isInNet(host, \"\(parts[0])\", \"\(mask)\")")
+                    conditions.append("isInNet(host, \"\(jsEscape(String(parts[0])))\", \"\(mask)\")")
                 }
             } else if host.hasPrefix("*.") {
-                conditions.append("dnsDomainIs(host, \"\(host.dropFirst(1))\")")
+                conditions.append("dnsDomainIs(host, \"\(jsEscape(String(host.dropFirst(1))))\")")
             } else if host.contains("*") {
-                conditions.append("shExpMatch(host, \"\(host)\")")
+                conditions.append("shExpMatch(host, \"\(jsEscape(host))\")")
             } else {
-                conditions.append("host == \"\(host)\"")
+                conditions.append("host == \"\(jsEscape(host))\"")
             }
         }
         let test = conditions.isEmpty ? "false" : conditions.joined(separator: " || ")

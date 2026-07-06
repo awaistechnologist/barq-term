@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 import Combine
 
 enum SplitDirection {
@@ -219,24 +220,46 @@ final class AppState: ObservableObject {
         connect(profile: profile)
     }
 
-    /// Handle a barq:// deep link.
+    /// Handle a barq:// deep link. Deep links can be triggered by any webpage,
+    /// so every action requires explicit user confirmation before it runs, and
+    /// ad-hoc ssh hosts are validated to block option injection.
     func handleURL(_ url: URL) {
         switch BarqURL.parse(url) {
         case .connectProfile(let name):
-            if let profile = profiles.profile(named: name) { connect(profile: profile) }
+            guard let profile = profiles.profile(named: name) else { return }
+            if confirmDeepLink("Open a connection to “\(profile.name)” (\(profile.target))?") {
+                connect(profile: profile)
+            }
         case .openPath(let path):
-            openLocalTab(in: path)
+            if confirmDeepLink("Open a local shell in “\(path)”?") {
+                openLocalTab(in: path)
+            }
         case .sshQuick(let host, let user, let port):
-            var profile = ConnectionProfile()
-            profile.name = host
-            profile.kind = .ssh
-            profile.host = host
-            profile.username = user ?? ""
-            profile.port = port ?? 22
-            connect(profile: profile)
+            guard SSHCommandBuilder.isSafeHost(host) else { return }
+            let who = user.map { "\($0)@" } ?? ""
+            if confirmDeepLink("Open an SSH session to “\(who)\(host)”?") {
+                var profile = ConnectionProfile()
+                profile.name = host
+                profile.kind = .ssh
+                profile.host = host
+                profile.username = user ?? ""
+                profile.port = port ?? 22
+                connect(profile: profile)
+            }
         case .unknown:
             break
         }
+    }
+
+    private func confirmDeepLink(_ message: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "Open link in Barq?"
+        alert.informativeText = "\(message)\n\nThis was requested by an external link."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open")
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     func connect(profile: ConnectionProfile, launch: SessionLaunch = .shell) {

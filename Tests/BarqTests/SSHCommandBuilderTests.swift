@@ -72,6 +72,36 @@ import Foundation
         #expect(scp.last == "pi@10.0.0.5:/opt/f.bin")
     }
 
+    @Test func testDestinationIsOptionGuarded() {
+        // `--` must precede the destination so a hostile host can't be parsed
+        // as an ssh option (CVE-class option injection).
+        let args = SSHCommandBuilder.sshArguments(for: makeProfile())
+        let dashDash = args.firstIndex(of: "--")
+        #expect(dashDash != nil)
+        #expect(args[dashDash! + 1] == "pi@10.0.0.5", "-- immediately precedes the destination")
+        #expect(dashDash! == args.count - 2, "nothing but the destination follows --")
+    }
+
+    @Test func testScpDestinationOptionGuarded() {
+        let scp = SSHCommandBuilder.scpArguments(for: makeProfile(), localPath: "/tmp/a", remotePath: "/tmp/b", upload: true)
+        #expect(scp.contains("--"))
+        let dashDash = scp.firstIndex(of: "--")!
+        #expect(dashDash < scp.count - 2, "-- precedes the positional source/target args")
+    }
+
+    @Test func testIsSafeHost() {
+        #expect(SSHCommandBuilder.isSafeHost("example.com"))
+        #expect(SSHCommandBuilder.isSafeHost("10.0.0.1"))
+        #expect(SSHCommandBuilder.isSafeHost("fe80::1%en0"))
+        #expect(SSHCommandBuilder.isSafeHost("[::1]"))
+        // Rejected: option-injection and shell/space metacharacters.
+        #expect(!SSHCommandBuilder.isSafeHost("-oProxyCommand=touch /tmp/pwned"))
+        #expect(!SSHCommandBuilder.isSafeHost("host with space"))
+        #expect(!SSHCommandBuilder.isSafeHost("a;rm -rf /"))
+        #expect(!SSHCommandBuilder.isSafeHost("$(whoami)"))
+        #expect(!SSHCommandBuilder.isSafeHost(""))
+    }
+
     @Test func testCloudflareAccessProxyCommand() {
         var profile = makeProfile()
         profile.cloudflareAccess = true

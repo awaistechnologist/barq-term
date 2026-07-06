@@ -263,7 +263,7 @@ func handle(request: [String: Any]) {
         reply(id: id, result: [
             "protocolVersion": requested,
             "capabilities": ["tools": [:] as [String: Any]],
-            "serverInfo": ["name": "barq", "version": "0.1.0"],
+            "serverInfo": ["name": "barq", "version": "0.2.0"],
             "instructions": """
             Barq is a macOS terminal with SSH, serial, telnet and local shell sessions, \
             plus a Context Vault of user-managed variables. Start with list_profiles and \
