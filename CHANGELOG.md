@@ -2,6 +2,23 @@
 
 All notable changes to Barq are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] — 2026-07-06
+
+Completes prateek-term feature parity with the last remaining item: **tab
+groups**. 147 tests across 25 suites.
+
+### Added
+- **Tab groups** — colored, collapsible groups in the tab bar:
+  - Auto-form from a profile's first connection tag (HOME, AWS, LAB, …), with a
+    deterministic per-tag color (stable across launches).
+  - A group's container appears once it holds two or more tabs; a lone grouped
+    tab shows just its accent dot (the "groups form when they matter" behavior).
+  - **Drag** tabs to reorder, to move them between groups, or onto a group to
+    join it; **collapse/expand** groups; **rename** and **recolor** via the group
+    header's context menu; group/ungroup and "new group from tab" from a tab's
+    menu.
+  - Grouping (name + color) is preserved across relaunch by session restore.
+
 ## [0.2.1] — 2026-07-06
 
 Security & correctness pass (full code/security/docs review). 136 tests.

@@ -23,6 +23,7 @@ It is built AI-first around three ideas:
 ### Terminal
 - Native SwiftTerm emulator, true color, Metal GPU renderer
 - Tabs, **split panes** (⌘D / ⇧⌘D), **tear-off windows** (⇧⌘N)
+- **Tab groups** — colored, collapsible groups that auto-form from a profile's tag; drag tabs between groups, rename/recolor, collapse
 - **Command palette** (⇧⌘P) and **global search** (⇧⌘F) across every session's scrollback
 - **⌘F find**, middle-click paste, tab rename, live theming
 - **Broadcast input** — type once, send to every pane in a tab
@@ -101,7 +102,7 @@ Requirements: macOS 13+, Swift 6 toolchain (Command Line Tools are enough — no
 
 ## Roadmap
 
-Shipped in 0.2.0: session restore, fleet `run_on_tag`, session recording, agent guardrails, SFTP, global search.
+Shipped recently: tab groups (0.3.0); session restore, fleet `run_on_tag`, session recording, agent guardrails, SFTP, global search (0.2.x).
 
 Next:
 - [ ] Developer ID signing + notarization, Homebrew cask

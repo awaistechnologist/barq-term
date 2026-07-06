@@ -165,7 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         // Capture final working directories before exit.
-        SessionRestore.save(SessionRestore.snapshot(from: AppState.shared.tabs, sessions: AppState.shared.sessions))
+        SessionRestore.save(SessionRestore.snapshot(from: AppState.shared.tabs, groups: AppState.shared.groups, sessions: AppState.shared.sessions))
     }
 }
 

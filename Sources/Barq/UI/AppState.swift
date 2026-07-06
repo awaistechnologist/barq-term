@@ -56,6 +56,8 @@ struct TerminalTab: Identifiable {
     var root: SplitNode
     var focusedSessionID: String
     var customTitle: String?
+    /// The tab group this tab belongs to, if any.
+    var groupID: UUID?
 }
 
 @MainActor
@@ -69,6 +71,7 @@ final class AppState: ObservableObject {
     let settings = SettingsStore.shared
 
     @Published var tabs: [TerminalTab] = []
+    @Published var groups: [TabGroup] = []
     @Published var selectedTabID: UUID?
     @Published var sidebarVisible = UserDefaults.standard.object(forKey: "sidebarVisible") as? Bool ?? true {
         didSet { UserDefaults.standard.set(sidebarVisible, forKey: "sidebarVisible") }
@@ -140,7 +143,7 @@ final class AppState: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.restoreScheduled = false
-            SessionRestore.save(SessionRestore.snapshot(from: self.tabs, sessions: self.sessions))
+            SessionRestore.save(SessionRestore.snapshot(from: self.tabs, groups: self.groups, sessions: self.sessions))
         }
     }
 
@@ -157,7 +160,15 @@ final class AppState: ObservableObject {
                 profile.workingDirectory = cwd
             }
             let session = sessions.open(profile: profile, origin: .user)
-            let tab = TerminalTab(root: .leaf(session.id), focusedSessionID: session.id, customTitle: entry.customTitle)
+            var tab = TerminalTab(root: .leaf(session.id), focusedSessionID: session.id, customTitle: entry.customTitle)
+            // Rebuild groups by name so grouping survives a relaunch.
+            if let groupName = entry.groupName {
+                let gid = groupID(forName: groupName, createIfMissing: true)
+                if let gid, let color = entry.groupColorHex {
+                    setGroupColor(id: gid, hex: color)
+                }
+                tab.groupID = gid
+            }
             tabs.append(tab)
             selectedTabID = tab.id
             restoredAny = true
@@ -268,10 +279,128 @@ final class AppState: ObservableObject {
     }
 
     private func attachTab(for session: TerminalSession) {
-        let tab = TerminalTab(root: .leaf(session.id), focusedSessionID: session.id)
+        var tab = TerminalTab(root: .leaf(session.id), focusedSessionID: session.id)
+        tab.groupID = autoGroupID(for: session.profile)
         tabs.append(tab)
         selectedTabID = tab.id
         persistSessions()
+    }
+
+    // MARK: Tab groups
+
+    /// Ordered layout of the tab bar: group segments and lone tabs.
+    var tabLayout: [TabLayoutItem] {
+        TabLayout.items(tabs: tabs, groups: groups)
+    }
+
+    func group(id: UUID?) -> TabGroup? {
+        guard let id else { return nil }
+        return groups.first { $0.id == id }
+    }
+
+    /// Find (or create) the group a freshly-opened profile belongs to, based on
+    /// its first connection tag. Untagged profiles are ungrouped.
+    private func autoGroupID(for profile: ConnectionProfile) -> UUID? {
+        guard let tag = profile.tags.first, !tag.isEmpty else { return nil }
+        return groupID(forName: tag, createIfMissing: true)
+    }
+
+    /// Look up a group by name (case-insensitive), optionally creating it with a
+    /// deterministic tag color.
+    @discardableResult
+    func groupID(forName name: String, createIfMissing: Bool) -> UUID? {
+        if let existing = groups.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+            return existing.id
+        }
+        guard createIfMissing else { return nil }
+        let group = TabGroup(name: name, colorHex: TabGroupPalette.color(for: name))
+        groups.append(group)
+        return group.id
+    }
+
+    func toggleCollapse(groupID: UUID) {
+        guard let idx = groups.firstIndex(where: { $0.id == groupID }) else { return }
+        groups[idx].collapsed.toggle()
+    }
+
+    func renameGroup(id: UUID, to name: String) {
+        guard let idx = groups.firstIndex(where: { $0.id == id }), !name.isEmpty else { return }
+        groups[idx].name = name
+    }
+
+    func setGroupColor(id: UUID, hex: String) {
+        guard let idx = groups.firstIndex(where: { $0.id == id }) else { return }
+        groups[idx].colorHex = hex
+    }
+
+    /// Put a tab into a group (creating a new group if `groupID` is nil).
+    func assign(tabID: UUID, toGroup groupID: UUID?) {
+        guard let idx = tabs.firstIndex(where: { $0.id == tabID }) else { return }
+        tabs[idx].groupID = groupID
+        pruneEmptyGroups()
+        persistSessions()
+    }
+
+    /// Create a new group seeded from a tab and move that tab into it.
+    @discardableResult
+    func createGroup(fromTab tabID: UUID, name: String? = nil) -> UUID? {
+        guard let idx = tabs.firstIndex(where: { $0.id == tabID }) else { return nil }
+        let groupName = name ?? title(for: tabs[idx])
+        let group = TabGroup(name: groupName, colorHex: TabGroupPalette.color(for: groupName))
+        groups.append(group)
+        tabs[idx].groupID = group.id
+        pruneEmptyGroups()
+        persistSessions()
+        return group.id
+    }
+
+    func removeFromGroup(tabID: UUID) {
+        assign(tabID: tabID, toGroup: nil)
+    }
+
+    /// Disband a group; its tabs become ungrouped.
+    func ungroup(id: UUID) {
+        for i in tabs.indices where tabs[i].groupID == id {
+            tabs[i].groupID = nil
+        }
+        groups.removeAll { $0.id == id }
+        persistSessions()
+    }
+
+    /// Reorder: move `tabID` to sit immediately before `targetID` (or to the end
+    /// when `targetID` is nil), adopting the target's group.
+    func moveTab(_ tabID: UUID, before targetID: UUID?) {
+        guard let from = tabs.firstIndex(where: { $0.id == tabID }) else { return }
+        var tab = tabs.remove(at: from)
+        if let targetID, let target = tabs.first(where: { $0.id == targetID }) {
+            tab.groupID = target.groupID
+            let insertAt = tabs.firstIndex(where: { $0.id == targetID }) ?? tabs.endIndex
+            tabs.insert(tab, at: insertAt)
+        } else {
+            tabs.append(tab)
+        }
+        pruneEmptyGroups()
+        persistSessions()
+    }
+
+    /// Drop a tab onto a group header: join that group, ordered next to members.
+    func moveTab(_ tabID: UUID, intoGroup groupID: UUID) {
+        guard let from = tabs.firstIndex(where: { $0.id == tabID }) else { return }
+        var tab = tabs.remove(at: from)
+        tab.groupID = groupID
+        // Insert after the last existing member so it clusters with the group.
+        if let lastMember = tabs.lastIndex(where: { $0.groupID == groupID }) {
+            tabs.insert(tab, at: lastMember + 1)
+        } else {
+            tabs.append(tab)
+        }
+        pruneEmptyGroups()
+        persistSessions()
+    }
+
+    private func pruneEmptyGroups() {
+        let used = Set(tabs.compactMap(\.groupID))
+        groups.removeAll { !used.contains($0.id) }
     }
 
     func closeTab(id: UUID) {
@@ -280,6 +409,7 @@ final class AppState: ObservableObject {
             sessions.close(id: sessionID)
         }
         tabs.removeAll { $0.id == id }
+        pruneEmptyGroups()
         if selectedTabID == id {
             selectedTabID = tabs.last?.id
         }
@@ -298,6 +428,7 @@ final class AppState: ObservableObject {
                 } else {
                     let tabID = tabs[idx].id
                     tabs.remove(at: idx)
+                    pruneEmptyGroups()
                     if selectedTabID == tabID { selectedTabID = tabs.last?.id }
                 }
                 break
@@ -320,6 +451,7 @@ final class AppState: ObservableObject {
             } else {
                 let tabID = tabs[idx].id
                 tabs.remove(at: idx)
+                pruneEmptyGroups()
                 if selectedTabID == tabID { selectedTabID = tabs.last?.id }
             }
             break
