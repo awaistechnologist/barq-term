@@ -55,6 +55,8 @@ final class ProfileStore: ObservableObject {
     func remove(id: UUID) {
         if let profile = profile(id: id) {
             Keychain.delete(profile.passwordKeychainKey)
+            Keychain.delete(profile.pemTextKeychainKey)
+            SSHKeyMaterializer.removeTempKey(for: profile)
         }
         profiles.removeAll { $0.id == id }
         save()
@@ -70,6 +72,19 @@ final class ProfileStore: ObservableObject {
 
     func password(for profile: ConnectionProfile) -> String? {
         Keychain.get(profile.passwordKeychainKey)
+    }
+
+    /// Store or clear a pasted private key for a profile (kept in the Keychain).
+    func setPemText(_ pem: String?, for profile: ConnectionProfile) {
+        if let pem, !pem.isEmpty {
+            Keychain.set(pem, for: profile.pemTextKeychainKey)
+        } else {
+            Keychain.delete(profile.pemTextKeychainKey)
+        }
+    }
+
+    func pemText(for profile: ConnectionProfile) -> String? {
+        Keychain.get(profile.pemTextKeychainKey)
     }
 
     /// All distinct tags, sorted; profiles with no tag fall under "OTHER".

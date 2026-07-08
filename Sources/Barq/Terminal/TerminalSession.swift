@@ -133,12 +133,14 @@ final class TerminalSession: ObservableObject, Identifiable {
             if profile.authType == .password {
                 pendingPassword = ProfileStore.sharedPassword(for: profile)
             }
+            // Materialize a pasted key to a temp file so ssh can `-i` it.
+            let connectProfile = SSHKeyMaterializer.resolvedForConnect(profile)
             var env = Terminal.getEnvironmentVariables(termName: "xterm-256color")
             env.append("TERM_PROGRAM=Barq")
             let executable = launch == .sftp ? "/usr/bin/sftp" : "/usr/bin/ssh"
             let args = launch == .sftp
-                ? SSHCommandBuilder.sftpArguments(for: profile)
-                : SSHCommandBuilder.sshArguments(for: profile)
+                ? SSHCommandBuilder.sftpArguments(for: connectProfile)
+                : SSHCommandBuilder.sshArguments(for: connectProfile)
             view.startProcess(executable: executable, args: args, environment: env)
             status = .connected
         case .serial:

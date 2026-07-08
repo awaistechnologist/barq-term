@@ -31,6 +31,7 @@ enum AuthType: String, Codable, CaseIterable, Identifiable {
     case agent
     case password
     case key
+    case keyText  // pasted private key, stored in the Keychain
 
     var id: String { rawValue }
 
@@ -39,6 +40,7 @@ enum AuthType: String, Codable, CaseIterable, Identifiable {
         case .agent: return "SSH Agent / Ask"
         case .password: return "Password"
         case .key: return "Identity File"
+        case .keyText: return "Paste Private Key"
         }
     }
 }
@@ -119,6 +121,7 @@ struct ConnectionProfile: Codable, Identifiable, Hashable {
     var authType: AuthType = .agent
     var identityFile: String = ""
     var extraSSHOptions: [String] = []
+    var agentForward: Bool = false // ssh -A
     var legacySCP: Bool = false // -O + HostKeyAlgorithms=+ssh-rsa for dropbear/BusyBox
     var jumpHost: JumpHost = JumpHost()
     var portForwards: [PortForward] = []
@@ -160,4 +163,6 @@ struct ConnectionProfile: Codable, Identifiable, Hashable {
 
     /// Keychain key for this profile's password.
     var passwordKeychainKey: String { "profile.\(id.uuidString)" }
+    /// Keychain key for a pasted private key (authType == .keyText).
+    var pemTextKeychainKey: String { "profile.\(id.uuidString).pemText" }
 }

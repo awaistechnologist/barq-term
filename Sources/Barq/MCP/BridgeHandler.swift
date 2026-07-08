@@ -186,8 +186,9 @@ final class BridgeHandler {
                 throw BridgeError.profileNotFound(name)
             }
             guard profile.aiAllowed else { throw BridgeError.aiNotAllowed(name) }
+            let connectProfile = SSHKeyMaterializer.resolvedForConnect(profile)
             let args = SSHCommandBuilder.scpArguments(
-                for: profile, localPath: localPath, remotePath: remotePath, upload: upload
+                for: connectProfile, localPath: localPath, remotePath: remotePath, upload: upload
             )
             let result = try await runProcess("/usr/bin/scp", args: args, timeout: 120)
             if result.exitCode != 0 {

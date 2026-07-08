@@ -9,8 +9,9 @@ enum SCPUploader {
         FileManager.default.fileExists(atPath: localPath, isDirectory: &isDir)
         let fileName = (localPath as NSString).lastPathComponent
         let dest = remoteDir.hasSuffix("/") ? remoteDir + fileName : remoteDir + "/" + fileName
+        let connectProfile = SSHKeyMaterializer.resolvedForConnect(profile)
         let args = SSHCommandBuilder.scpArguments(
-            for: profile, localPath: localPath, remotePath: dest, upload: true, recursive: isDir.boolValue
+            for: connectProfile, localPath: localPath, remotePath: dest, upload: true, recursive: isDir.boolValue
         )
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/scp")

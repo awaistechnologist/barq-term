@@ -39,6 +39,36 @@ import Foundation
         #expect(args.contains("IdentitiesOnly=yes"))
     }
 
+    @Test func testAgentForward() {
+        var profile = makeProfile()
+        profile.agentForward = true
+        #expect(SSHCommandBuilder.sshArguments(for: profile).contains("-A"))
+        var off = makeProfile()
+        off.agentForward = false
+        #expect(!SSHCommandBuilder.sshArguments(for: off).contains("-A"))
+    }
+
+    @Test func testCustomSSHOptions() {
+        var profile = makeProfile()
+        profile.extraSSHOptions = ["StrictHostKeyChecking=no", "ConnectTimeout=5"]
+        let args = SSHCommandBuilder.sshArguments(for: profile)
+        #expect(args.contains("StrictHostKeyChecking=no"))
+        #expect(args.contains("ConnectTimeout=5"))
+    }
+
+    @Test func testKeyTextUsesIdentityFileWhenResolved() {
+        var profile = makeProfile()
+        profile.authType = .keyText
+        // After materialization the resolver sets identityFile to a temp path;
+        // the builder must then emit -i for pasted-key auth too.
+        profile.identityFile = "/tmp/barq-key-xyz"
+        let args = SSHCommandBuilder.sshArguments(for: profile)
+        let idx = args.firstIndex(of: "-i")
+        #expect(idx != nil)
+        #expect(args[idx! + 1] == "/tmp/barq-key-xyz")
+        #expect(SSHCommandBuilder.usesIdentityFile(profile))
+    }
+
     @Test func testJumpHost() {
         var profile = makeProfile()
         profile.jumpHost = JumpHost(enabled: true, host: "bastion.example.com", port: 2200, username: "gate", identityFile: "")

@@ -17,4 +17,16 @@ enum AppPaths {
     static var profilesFile: URL { supportDirectory.appendingPathComponent("profiles.json") }
     static var vaultFile: URL { supportDirectory.appendingPathComponent("vault.json") }
     static var bridgeSocket: URL { supportDirectory.appendingPathComponent("bridge.sock") }
+
+    /// Directory for materialized private keys (pasted keys written to disk so
+    /// ssh can `-i` them). Owner-only.
+    static var keysDirectory: URL {
+        let dir = supportDirectory.appendingPathComponent("keys", isDirectory: true)
+        try? FileManager.default.createDirectory(
+            at: dir,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+        return dir
+    }
 }

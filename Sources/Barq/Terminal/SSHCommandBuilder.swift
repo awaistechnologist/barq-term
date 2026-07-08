@@ -16,14 +16,23 @@ enum SSHCommandBuilder {
         return host.unicodeScalars.allSatisfy { allowed.contains($0) }
     }
 
+    /// True for auth modes that pass an identity file to ssh. `.keyText` becomes
+    /// a materialized temp file (see SSHKeyMaterializer) before we build args.
+    static func usesIdentityFile(_ profile: ConnectionProfile) -> Bool {
+        profile.authType == .key || profile.authType == .keyText
+    }
+
     static func sshArguments(for profile: ConnectionProfile) -> [String] {
         var args: [String] = []
 
         if profile.port != 22 {
             args += ["-p", String(profile.port)]
         }
-        if profile.authType == .key, !profile.identityFile.isEmpty {
+        if usesIdentityFile(profile), !profile.identityFile.isEmpty {
             args += ["-i", expandTilde(profile.identityFile), "-o", "IdentitiesOnly=yes"]
+        }
+        if profile.agentForward {
+            args += ["-A"]
         }
         if profile.cloudflareAccess {
             // Zero-trust tunnel: ssh pipes through `cloudflared access ssh`.
@@ -66,7 +75,7 @@ enum SSHCommandBuilder {
         if profile.port != 22 {
             args += ["-P", String(profile.port)]
         }
-        if profile.authType == .key, !profile.identityFile.isEmpty {
+        if usesIdentityFile(profile), !profile.identityFile.isEmpty {
             args += ["-i", expandTilde(profile.identityFile), "-o", "IdentitiesOnly=yes"]
         }
         if profile.jumpHost.enabled, !profile.jumpHost.host.isEmpty {
@@ -95,7 +104,7 @@ enum SSHCommandBuilder {
         if profile.port != 22 {
             args += ["-P", String(profile.port)]
         }
-        if profile.authType == .key, !profile.identityFile.isEmpty {
+        if usesIdentityFile(profile), !profile.identityFile.isEmpty {
             args += ["-i", expandTilde(profile.identityFile), "-o", "IdentitiesOnly=yes"]
         }
         if profile.jumpHost.enabled, !profile.jumpHost.host.isEmpty {
