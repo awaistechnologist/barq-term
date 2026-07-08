@@ -13,9 +13,13 @@ concurrency:
 jobs:
   test:
     name: Build & Test (macOS arm64)
-    runs-on: macos-14
+    runs-on: macos-15          # Apple Silicon, ships Xcode 16 / Swift 6
     steps:
       - uses: actions/checkout@v4
+
+      # Barq needs Swift 6 (tools-version 6.0 + Swift Testing).
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.app
 
       - name: Swift version
         run: swift --version
@@ -27,7 +31,7 @@ jobs:
         run: ./scripts/test.sh
 
       - name: Bundle app
-        run: ./scripts/make-app.sh
+        run: ./scripts/make-app.sh "${GITHUB_REF_NAME#v}"
 
       - name: Upload app artifact
         uses: actions/upload-artifact@v4
