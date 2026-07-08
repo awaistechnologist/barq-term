@@ -46,6 +46,23 @@ private struct AISettings: View {
     @ObservedObject var settings = SettingsStore.shared
     @ObservedObject var ai = AIService.shared
     @State private var keyField = ""
+    @State private var recommendation: ModelRecommendation?
+    @State private var installing = false
+    @State private var installProgress = ""
+    private var installed: [String] { ai.availableOllamaModels }
+
+    private func install(_ model: String) {
+        installing = true
+        installProgress = "Starting…"
+        OllamaSetup.pull(model, progress: { installProgress = $0 }) { ok, msg in
+            installing = false
+            installProgress = msg
+            if ok {
+                settings.ollamaModel = model
+                Task { await ai.refreshOllama() }
+            }
+        }
+    }
 
     var body: some View {
         Form {
@@ -78,6 +95,34 @@ private struct AISettings: View {
                     }
                     Button("Refresh models") {
                         Task { await ai.refreshOllama() }
+                    }
+                }
+                Section("Recommended for this Mac") {
+                    if let rec = recommendation {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(rec.model).font(.system(.body, design: .monospaced)).bold()
+                            Text(rec.reason).font(.system(size: 11)).foregroundStyle(.secondary)
+                            Text("Source: \(rec.source)").font(.system(size: 10)).foregroundStyle(.tertiary)
+                        }
+                        if installed.contains(where: { $0.hasPrefix(rec.model) }) {
+                            Label("Installed — selected", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green).font(.system(size: 11))
+                        } else if installing {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text(installProgress).font(.system(size: 11, design: .monospaced)).lineLimit(1)
+                            }
+                        } else {
+                            Button("Download & Use \(rec.model)") { install(rec.model) }
+                        }
+                    } else {
+                        Button {
+                            Task { recommendation = await ModelAdvisor.recommend() }
+                        } label: {
+                            Label("Suggest the best model for this Mac", systemImage: "wand.and.stars")
+                        }
+                        Text("\(ModelAdvisor.physicalRAMGB) GB detected. Uses llm-checker if installed, otherwise Barq's built-in advisor.")
+                            .font(.system(size: 10)).foregroundStyle(.secondary)
                     }
                 }
             } else {
