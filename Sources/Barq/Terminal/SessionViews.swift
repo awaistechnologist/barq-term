@@ -66,6 +66,13 @@ final class ProcessTerminalView: LocalProcessTerminalView {
         guard let sessionID, let key = sender.representedObject as? String else { return }
         NotificationCenter.default.post(name: .barqTerminalAction, object: sessionID, userInfo: ["action": key])
     }
+
+    // SwiftTerm's validateUserInterfaceItem returns false for actions it doesn't
+    // know, which greys out our custom menu items. Whitelist ours.
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(barqAction(_:)) { return true }
+        return super.validateUserInterfaceItem(item)
+    }
 }
 
 // MARK: - Stream-backed terminal (serial, telnet)
