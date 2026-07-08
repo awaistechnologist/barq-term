@@ -59,7 +59,7 @@ struct TabBarView: View {
 
             controls
         }
-        .padding(.horizontal, BarqDesign.s3)
+        .padding(.trailing, BarqDesign.s3)   // leading inset is the traffic-light spacer
         .frame(height: BarqDesign.topBarHeight)
         .background(
             ZStack {

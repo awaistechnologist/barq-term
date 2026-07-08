@@ -20,7 +20,9 @@ enum BarqDesign {
 
     static let topBarHeight: CGFloat = 44
     /// Leading inset that keeps content clear of the traffic-light buttons.
-    static let trafficLightInset: CGFloat = 78
+    /// The three lights end ~68px from the window edge; this sits the wordmark
+    /// just past them with a small breath (this is the *total* left inset).
+    static let trafficLightInset: CGFloat = 72
 
     /// The signature electric accent. Slightly deeper on light themes so it
     /// stays legible on a bright background.
