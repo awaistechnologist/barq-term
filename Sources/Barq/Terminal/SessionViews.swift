@@ -40,6 +40,32 @@ final class ProcessTerminalView: LocalProcessTerminalView {
         super.processTerminated(source, exitCode: exitCode)
         onExit?(exitCode)
     }
+
+    // MARK: Right-click quick actions
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = NSMenu()
+        menu.addItem(withTitle: "Copy", action: Selector(("copy:")), keyEquivalent: "")
+        menu.addItem(withTitle: "Paste", action: Selector(("paste:")), keyEquivalent: "")
+        menu.addItem(withTitle: "Select All", action: Selector(("selectAll:")), keyEquivalent: "")
+        menu.addItem(.separator())
+        addAction(menu, "New Tab Here", "newTabHere")
+        addAction(menu, "Save Directory as a Host…", "saveDirAsProfile")
+        addAction(menu, "Copy Working Directory", "copyCwd")
+        return menu
+    }
+
+    private func addAction(_ menu: NSMenu, _ title: String, _ key: String) {
+        let item = NSMenuItem(title: title, action: #selector(barqAction(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = key
+        menu.addItem(item)
+    }
+
+    @objc private func barqAction(_ sender: NSMenuItem) {
+        guard let sessionID, let key = sender.representedObject as? String else { return }
+        NotificationCenter.default.post(name: .barqTerminalAction, object: sessionID, userInfo: ["action": key])
+    }
 }
 
 // MARK: - Stream-backed terminal (serial, telnet)

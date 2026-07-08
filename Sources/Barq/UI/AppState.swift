@@ -127,6 +127,16 @@ final class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: .barqTerminalAction)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] note in
+                guard let self,
+                      let sessionID = note.object as? String,
+                      let action = note.userInfo?["action"] as? String else { return }
+                self.handleTerminalAction(action, sessionID: sessionID)
+            }
+            .store(in: &cancellables)
+
         // Re-style every open terminal when appearance settings change.
         settings.$themeID
             .dropFirst()
@@ -296,6 +306,28 @@ final class AppState: ObservableObject {
 
     /// Return to the Home launch surface (tabs stay open).
     func goHome() { selectedTabID = nil }
+
+    /// Handle a right-click quick action from a terminal.
+    private func handleTerminalAction(_ action: String, sessionID: String) {
+        guard let session = sessions.session(id: sessionID) else { return }
+        let cwd = session.currentDirectory
+        switch action {
+        case "newTabHere":
+            openLocalTab(in: cwd ?? FileManager.default.homeDirectoryForCurrentUser.path)
+        case "copyCwd":
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(cwd ?? "~", forType: .string)
+        case "saveDirAsProfile":
+            var profile = ConnectionProfile()
+            profile.kind = .local
+            profile.workingDirectory = cwd ?? ""
+            profile.name = cwd.map { ($0 as NSString).lastPathComponent } ?? "New Host"
+            editingProfile = profile           // open the editor prefilled
+            showingProfileEditor = true
+        default:
+            break
+        }
+    }
 
     /// Run the result the omni-bar produced.
     func perform(_ kind: OmniKind) {
@@ -632,4 +664,7 @@ extension Notification.Name {
     /// Request that a specific session's terminal become the window's first
     /// responder (object == sessionID string).
     static let barqFocusTerminal = Notification.Name("BarqFocusTerminal")
+    /// A right-click quick action from a terminal (object == sessionID,
+    /// userInfo["action"] == action key).
+    static let barqTerminalAction = Notification.Name("BarqTerminalAction")
 }
