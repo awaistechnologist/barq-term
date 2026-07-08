@@ -2,6 +2,21 @@
 
 All notable changes to Barq are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.1] — 2026-07-08
+
+### Fixed — data loss on upgrade (important)
+- **Saved profiles, vault items, and snippets are no longer wiped when a new
+  build adds a field.** The models used Swift's synthesized `Codable`, whose
+  decoder throws on any key missing from older saved JSON — so each schema
+  change (e.g. `agentForward`, `cloudflareAccess`, port-forward filters) caused
+  the store to fall back to empty and overwrite the file with defaults. All
+  persisted models now decode resiliently: a missing key uses its default
+  instead of discarding the record.
+- **Stores never overwrite a file they can't parse.** An unreadable
+  `profiles.json` / `vault.json` / `snippets.json` is moved aside to
+  `<name>.corrupt-<timestamp>` for recovery rather than being replaced, and the
+  default profile is only seeded on genuine first launch.
+
 ## [0.4.0] — 2026-07-06
 
 SSH connection UX parity + fixes surfaced by real use. 164 tests across 28 suites.

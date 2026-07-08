@@ -73,6 +73,33 @@ struct PortForward: Codable, Identifiable, Hashable {
     var filterMode: ProxyFilterMode = .all
     var filterHosts: [String] = []
 
+    init(id: UUID = UUID(), kind: ForwardKind = .local, bindAddress: String = "127.0.0.1",
+         listenPort: Int = 8080, targetHost: String = "", targetPort: Int = 80,
+         enabled: Bool = true, filterMode: ProxyFilterMode = .all, filterHosts: [String] = []) {
+        self.id = id; self.kind = kind; self.bindAddress = bindAddress
+        self.listenPort = listenPort; self.targetHost = targetHost; self.targetPort = targetPort
+        self.enabled = enabled; self.filterMode = filterMode; self.filterHosts = filterHosts
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, bindAddress, listenPort, targetHost, targetPort, enabled, filterMode, filterHosts
+    }
+
+    // Resilient: missing keys (older saved data) fall back to defaults.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func d<T: Decodable>(_ k: CodingKeys, _ def: T) -> T { (try? c.decodeIfPresent(T.self, forKey: k)) ?? def }
+        id = d(.id, UUID())
+        kind = d(.kind, .local)
+        bindAddress = d(.bindAddress, "127.0.0.1")
+        listenPort = d(.listenPort, 8080)
+        targetHost = d(.targetHost, "")
+        targetPort = d(.targetPort, 80)
+        enabled = d(.enabled, true)
+        filterMode = d(.filterMode, .all)
+        filterHosts = d(.filterHosts, [])
+    }
+
     /// The ssh CLI argument for this rule, e.g. `-L 127.0.0.1:8080:host:80`
     var sshArguments: [String] {
         switch kind {
@@ -93,6 +120,24 @@ struct JumpHost: Codable, Hashable {
     var username: String = ""
     var identityFile: String = ""
 
+    init() {}
+    init(enabled: Bool, host: String, port: Int, username: String, identityFile: String) {
+        self.enabled = enabled; self.host = host; self.port = port
+        self.username = username; self.identityFile = identityFile
+    }
+
+    enum CodingKeys: String, CodingKey { case enabled, host, port, username, identityFile }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func d<T: Decodable>(_ k: CodingKeys, _ def: T) -> T { (try? c.decodeIfPresent(T.self, forKey: k)) ?? def }
+        enabled = d(.enabled, false)
+        host = d(.host, "")
+        port = d(.port, 22)
+        username = d(.username, "")
+        identityFile = d(.identityFile, "")
+    }
+
     /// Value for ssh -J
     var proxyJumpValue: String {
         var value = ""
@@ -107,6 +152,18 @@ struct CustomAction: Codable, Identifiable, Hashable {
     var id = UUID()
     var name: String = ""
     var command: String = ""
+
+    init() {}
+
+    enum CodingKeys: String, CodingKey { case id, name, command }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func d<T: Decodable>(_ k: CodingKeys, _ def: T) -> T { (try? c.decodeIfPresent(T.self, forKey: k)) ?? def }
+        id = d(.id, UUID())
+        name = d(.name, "")
+        command = d(.command, "")
+    }
 }
 
 struct ConnectionProfile: Codable, Identifiable, Hashable {
@@ -144,6 +201,46 @@ struct ConnectionProfile: Codable, Identifiable, Hashable {
     var aiAllowed: Bool = false
     var customActions: [CustomAction] = []
     var notes: String = ""
+
+    init() {}
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, kind, host, port, username, authType, identityFile, extraSSHOptions
+        case agentForward, legacySCP, jumpHost, portForwards, cloudflareAccess
+        case serialDevice, baudRate, dataBits, stopBits, parity, workingDirectory
+        case tags, aiAllowed, customActions, notes
+    }
+
+    /// Resilient decode: any key missing from older saved data falls back to its
+    /// default, so adding a field never wipes a user's saved profiles.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func d<T: Decodable>(_ k: CodingKeys, _ def: T) -> T { (try? c.decodeIfPresent(T.self, forKey: k)) ?? def }
+        id = d(.id, UUID())
+        name = d(.name, "")
+        kind = d(.kind, .ssh)
+        host = d(.host, "")
+        port = d(.port, 22)
+        username = d(.username, "")
+        authType = d(.authType, .agent)
+        identityFile = d(.identityFile, "")
+        extraSSHOptions = d(.extraSSHOptions, [])
+        agentForward = d(.agentForward, false)
+        legacySCP = d(.legacySCP, false)
+        jumpHost = d(.jumpHost, JumpHost())
+        portForwards = d(.portForwards, [])
+        cloudflareAccess = d(.cloudflareAccess, false)
+        serialDevice = d(.serialDevice, "")
+        baudRate = d(.baudRate, 115200)
+        dataBits = d(.dataBits, 8)
+        stopBits = d(.stopBits, 1)
+        parity = d(.parity, "none")
+        workingDirectory = d(.workingDirectory, "")
+        tags = d(.tags, [])
+        aiAllowed = d(.aiAllowed, false)
+        customActions = d(.customActions, [])
+        notes = d(.notes, "")
+    }
 
     /// Human-readable connection target, e.g. `pi@10.0.0.4:22`
     var target: String {

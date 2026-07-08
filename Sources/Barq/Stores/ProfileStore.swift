@@ -9,8 +9,10 @@ final class ProfileStore: ObservableObject {
     init(fileURL: URL = AppPaths.profilesFile) {
         self.fileURL = fileURL
         load()
-        if profiles.isEmpty {
-            // A starter local-shell profile so the app is useful on first launch.
+        // Seed a starter profile only when there is no file (first launch) or the
+        // file was unparseable and moved aside — never when the user genuinely
+        // has an empty list, and never overwriting readable data.
+        if profiles.isEmpty && !FileManager.default.fileExists(atPath: fileURL.path) {
             var local = ConnectionProfile()
             local.name = "Local"
             local.kind = .local
@@ -21,9 +23,13 @@ final class ProfileStore: ObservableObject {
     }
 
     func load() {
-        guard let data = try? Data(contentsOf: fileURL) else { return }
-        if let decoded = try? JSONDecoder().decode([ConnectionProfile].self, from: data) {
-            profiles = decoded
+        guard FileManager.default.fileExists(atPath: fileURL.path),
+              let data = try? Data(contentsOf: fileURL) else { return }
+        do {
+            profiles = try JSONDecoder().decode([ConnectionProfile].self, from: data)
+        } catch {
+            // Don't destroy data we can't read — preserve it for recovery.
+            StoreBackup.backup(fileURL)
         }
     }
 

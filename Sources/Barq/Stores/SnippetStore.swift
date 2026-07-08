@@ -9,6 +9,22 @@ struct Snippet: Codable, Identifiable, Hashable {
     var command: String = ""
     var tags: [String] = []
 
+    init(id: UUID = UUID(), title: String = "", command: String = "", tags: [String] = []) {
+        self.id = id; self.title = title; self.command = command; self.tags = tags
+    }
+
+    enum CodingKeys: String, CodingKey { case id, title, command, tags }
+
+    // Resilient: missing keys fall back to defaults.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func d<T: Decodable>(_ k: CodingKeys, _ def: T) -> T { (try? c.decodeIfPresent(T.self, forKey: k)) ?? def }
+        id = d(.id, UUID())
+        title = d(.title, "")
+        command = d(.command, "")
+        tags = d(.tags, [])
+    }
+
     /// Placeholder names of the form `${NAME}` (excluding `${BARQ:...}`).
     var placeholders: [String] {
         guard let regex = try? NSRegularExpression(pattern: #"\$\{(?!BARQ:)([A-Za-z0-9_]+)\}"#) else { return [] }
@@ -43,9 +59,13 @@ final class SnippetStore: ObservableObject {
     }
 
     func load() {
-        guard let data = try? Data(contentsOf: fileURL),
-              let decoded = try? JSONDecoder().decode([Snippet].self, from: data) else { return }
-        snippets = decoded
+        guard FileManager.default.fileExists(atPath: fileURL.path),
+              let data = try? Data(contentsOf: fileURL) else { return }
+        do {
+            snippets = try JSONDecoder().decode([Snippet].self, from: data)
+        } catch {
+            StoreBackup.backup(fileURL)
+        }
     }
 
     func save() {

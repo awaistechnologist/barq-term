@@ -56,6 +56,29 @@ struct VaultItem: Codable, Identifiable, Hashable {
     var createdAt = Date()
     var updatedAt = Date()
 
+    init(id: UUID = UUID(), name: String, summary: String = "", policy: VaultPolicy = .approval,
+         scope: VaultScope = .global, createdAt: Date = Date(), updatedAt: Date = Date()) {
+        self.id = id; self.name = name; self.summary = summary; self.policy = policy
+        self.scope = scope; self.createdAt = createdAt; self.updatedAt = updatedAt
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, summary, policy, scope, createdAt, updatedAt
+    }
+
+    // Resilient: missing keys fall back to defaults so schema changes don't drop items.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func d<T: Decodable>(_ k: CodingKeys, _ def: T) -> T { (try? c.decodeIfPresent(T.self, forKey: k)) ?? def }
+        id = d(.id, UUID())
+        name = d(.name, "")
+        summary = d(.summary, "")
+        policy = d(.policy, .approval)
+        scope = d(.scope, .global)
+        createdAt = d(.createdAt, Date())
+        updatedAt = d(.updatedAt, Date())
+    }
+
     var keychainKey: String { "vault.\(name)" }
 
     static let namePattern = "^[A-Z][A-Z0-9_]*$"

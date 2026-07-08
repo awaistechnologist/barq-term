@@ -42,9 +42,12 @@ final class VaultStore: ObservableObject {
     }
 
     func load() {
-        guard let data = try? Data(contentsOf: fileURL) else { return }
-        if let decoded = try? JSONDecoder().decode([VaultItem].self, from: data) {
-            items = decoded
+        guard FileManager.default.fileExists(atPath: fileURL.path),
+              let data = try? Data(contentsOf: fileURL) else { return }
+        do {
+            items = try JSONDecoder().decode([VaultItem].self, from: data)
+        } catch {
+            StoreBackup.backup(fileURL)
         }
     }
 
