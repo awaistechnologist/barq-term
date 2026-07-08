@@ -60,12 +60,27 @@ Safety model:
 - **`run_on_tag`**: fleet operations across every AI-allowed host carrying a tag
 - Full audit log of every agent access in the Vault window
 
-## Quick start
+## Install
+
+**Homebrew (recommended — handles updates via `brew upgrade`):**
+```bash
+brew tap awaistechnologist/barq
+brew install --cask barq-term          # add --no-quarantine to skip the Gatekeeper prompt
+```
+
+**Direct download:** grab the latest `Barq-<version>.dmg` from
+[Releases](https://github.com/awaistechnologist/barq-term/releases), open it, and
+drag Barq to Applications. Barq notifies you in-app when a new version ships.
+
+> Barq is currently ad-hoc signed (not notarized). On first launch macOS may warn:
+> **right-click Barq → Open**, or **System Settings → Privacy & Security → Open Anyway**.
+
+## Build from source
 
 ```bash
-git clone https://github.com/YOUR_USER/barq && cd barq
+git clone https://github.com/awaistechnologist/barq-term && cd barq-term
 swift run Barq            # run it
-./scripts/make-app.sh     # or build dist/Barq.app
+./scripts/make-app.sh 0.7.1 && ./scripts/make-dmg.sh 0.7.1   # or build the DMG
 ```
 
 Register the MCP server (Settings → MCP → one click), or manually:

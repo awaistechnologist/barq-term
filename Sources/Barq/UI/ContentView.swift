@@ -1,4 +1,34 @@
 import SwiftUI
+import AppKit
+
+/// Slim banner shown when a newer Barq release is available on GitHub.
+private struct UpdateBanner: View {
+    let update: UpdateChecker.Release
+    let theme: BarqTheme
+    let dismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: BarqDesign.s2) {
+            Image(systemName: "arrow.down.circle.fill").foregroundStyle(theme.electric)
+            Text("Barq \(update.version) is available")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(theme.textPrimary)
+            Spacer()
+            Button("Download") {
+                if let url = URL(string: update.url) { NSWorkspace.shared.open(url) }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 10, weight: .bold)) }
+                .buttonStyle(.plain)
+                .foregroundStyle(theme.textSecondary)
+        }
+        .padding(.horizontal, BarqDesign.s3)
+        .padding(.vertical, 7)
+        .background(theme.electric.opacity(0.12))
+        .overlay(alignment: .bottom) { theme.hairline.frame(height: 1) }
+    }
+}
 
 struct ContentView: View {
     @ObservedObject var state = AppState.shared
@@ -14,6 +44,9 @@ struct ContentView: View {
 
             VStack(spacing: 0) {
                 TabBarView(state: state)
+                if let update = state.availableUpdate {
+                    UpdateBanner(update: update, theme: theme) { state.availableUpdate = nil }
+                }
                 HStack(spacing: 0) {
                     if state.sidebarVisible {
                         SidebarView(state: state)

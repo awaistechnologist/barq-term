@@ -76,6 +76,16 @@ struct BarqApp: App {
                 Button("Search All Sessions…") { state.globalSearchVisible = true }
                     .keyboardShortcut("f", modifiers: [.command, .shift])
             }
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    Task { @MainActor in
+                        if let r = await UpdateChecker.latest() {
+                            state.availableUpdate = AppVersion.isNewer(r.version, than: UpdateChecker.currentVersion()) ? r : nil
+                            if state.availableUpdate == nil { showUpToDate() }
+                        }
+                    }
+                }
+            }
             CommandMenu("Tools") {
                 Button("Context Vault") {
                     openWindow(id: "vault")
@@ -98,6 +108,15 @@ struct BarqApp: App {
             SettingsView()
         }
     }
+}
+
+@MainActor
+private func showUpToDate() {
+    let alert = NSAlert()
+    alert.messageText = "You're up to date"
+    alert.informativeText = "Barq \(UpdateChecker.currentVersion()) is the latest version."
+    alert.addButton(withTitle: "OK")
+    alert.runModal()
 }
 
 @MainActor

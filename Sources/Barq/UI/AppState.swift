@@ -98,6 +98,8 @@ final class AppState: ObservableObject {
     @Published var pendingAIQuestion: String?
     /// Recently connected profile IDs (most recent first), persisted.
     @Published var recentProfileIDs: [UUID] = AppState.loadRecents()
+    /// A newer release available on GitHub, if any.
+    @Published var availableUpdate: UpdateChecker.Release?
 
     private var bridge: BridgeServer?
     private var cancellables = Set<AnyCancellable>()
@@ -207,6 +209,7 @@ final class AppState: ObservableObject {
             bridge = server
         }
         Task { await AIService.shared.refreshOllama() }
+        Task { self.availableUpdate = await UpdateChecker.availableUpdate() }
         installBroadcastMonitor()
     }
 
