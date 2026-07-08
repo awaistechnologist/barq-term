@@ -513,12 +513,10 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Move the focused session into its own window, removing it from the tab
-    /// tree (the session stays alive).
-    func detachFocusedSession() {
-        guard let session = focusedSession else { return }
-        let sessionID = session.id
-        // Remove the leaf from its tab without terminating the session.
+    /// Move a session into its own window, removing it from the tab tree
+    /// (the session stays alive).
+    func detachSession(_ sessionID: String) {
+        guard let session = sessions.session(id: sessionID) else { return }
         for idx in tabs.indices where tabs[idx].root.sessionIDs.contains(sessionID) {
             if let newRoot = tabs[idx].root.removing(sessionID: sessionID) {
                 tabs[idx].root = newRoot
@@ -534,6 +532,17 @@ final class AppState: ObservableObject {
             break
         }
         DetachedWindowManager.shared.detach(session: session)
+    }
+
+    func detachFocusedSession() {
+        if let session = focusedSession { detachSession(session.id) }
+    }
+
+    /// Tear a whole tab out into its own window (uses its focused pane).
+    func detach(tabID: UUID) {
+        if let tab = tabs.first(where: { $0.id == tabID }) {
+            detachSession(tab.focusedSessionID)
+        }
     }
 
     func splitFocused(direction: SplitDirection) {

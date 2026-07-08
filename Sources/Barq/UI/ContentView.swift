@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var state = AppState.shared
     @ObservedObject var settings = SettingsStore.shared
+    @State private var tearOffTargeted = false
     private var theme: BarqTheme { settings.theme }
 
     var body: some View {
@@ -22,6 +23,31 @@ struct ContentView: View {
                     }
                     terminalArea
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        // Chrome-style tear-off: drag a tab into the body to pop
+                        // it out into its own window.
+                        .dropDestination(for: TabTransfer.self) { payload, _ in
+                            guard let id = payload.first?.id else { return false }
+                            state.detach(tabID: id)
+                            return true
+                        } isTargeted: { tearOffTargeted = $0 }
+                        .overlay {
+                            if tearOffTargeted {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(theme.electric.opacity(0.10))
+                                        .overlay(RoundedRectangle(cornerRadius: 12)
+                                            .strokeBorder(theme.electric.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [7, 5])))
+                                    Label("Release to open in a new window", systemImage: "rectangle.badge.plus")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(theme.electric)
+                                        .padding(.horizontal, 14).padding(.vertical, 9)
+                                        .background(.ultraThinMaterial, in: Capsule())
+                                }
+                                .padding(BarqDesign.s2)
+                                .allowsHitTesting(false)
+                                .transition(.opacity)
+                            }
+                        }
                     if state.aiPanelVisible {
                         AIPanelView(state: state)
                             .transition(.move(edge: .trailing).combined(with: .opacity))

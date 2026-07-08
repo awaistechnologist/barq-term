@@ -74,6 +74,12 @@ struct TabBarView: View {
 
     private var controls: some View {
         HStack(spacing: BarqDesign.s1) {
+            TopBarButton(
+                symbol: state.sidebarVisible ? "sidebar.left" : "sidebar.leading",
+                theme: theme,
+                tint: state.sidebarVisible ? nil : theme.textTertiary,
+                help: state.sidebarVisible ? "Hide hosts sidebar (⌘B)" : "Show hosts sidebar (⌘B)"
+            ) { withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) { state.sidebarVisible.toggle() } }
             TopBarButton(symbol: "magnifyingglass", theme: theme, help: "Command palette (⇧⌘P)") {
                 state.paletteVisible = true
             }
