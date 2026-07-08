@@ -161,6 +161,17 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
     }
 
+    /// Best-effort working directory. Prefers an OSC 7 report (remote shells
+    /// with integration); for local shells, which don't emit OSC 7 under Barq,
+    /// reads the PTY child's live cwd from the kernel.
+    var resolvedWorkingDirectory: String? {
+        if let currentDirectory, !currentDirectory.isEmpty { return currentDirectory }
+        guard profile.kind == .local,
+              let view = terminalView as? ProcessTerminalView,
+              let process = view.process, process.running else { return nil }
+        return ProcessCwd.of(pid: process.shellPid)
+    }
+
     private func attachStream(_ backend: StreamBackend) {
         let view = terminalView as! StreamTerminalView
         view.attach(backend: backend)

@@ -51,7 +51,7 @@ final class AIService: ObservableObject {
         var lines = ["OS: macOS (Apple Silicon), shell: \((SettingsStore.shared.shellPath as NSString).lastPathComponent)"]
         if let session {
             lines.append("Session kind: \(session.profile.kind.rawValue), target: \(session.profile.target)")
-            if let cwd = session.currentDirectory {
+            if let cwd = session.resolvedWorkingDirectory {
                 lines.append("Current directory: \(cwd)")
             }
             let tail = session.readOutput(maxBytes: 3000)

@@ -313,7 +313,7 @@ final class AppState: ObservableObject {
     /// Handle a right-click quick action from a terminal.
     private func handleTerminalAction(_ action: String, sessionID: String) {
         guard let session = sessions.session(id: sessionID) else { return }
-        let cwd = session.currentDirectory
+        let cwd = session.resolvedWorkingDirectory
         switch action {
         case "newTabHere":
             openLocalTab(in: cwd ?? FileManager.default.homeDirectoryForCurrentUser.path)
