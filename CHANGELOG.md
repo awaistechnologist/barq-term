@@ -2,6 +2,26 @@
 
 All notable changes to Barq are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] — 2026-07-06
+
+SSH connection UX parity + fixes surfaced by real use. 164 tests across 28 suites.
+
+### Fixed
+- **Terminal never received keyboard focus** — typing went to the sidebar
+  search field. The terminal now actively claims first responder on launch,
+  click, tab switch, split, and overlay dismiss (without stealing focus from a
+  text field you're deliberately editing).
+
+### Added — SSH auth parity with prateek-term
+- **Browse… button** to pick an identity file (opens `~/.ssh`).
+- **Paste Private Key** auth mode — key stored in the Keychain, materialized to
+  a 0600 temp file at connect for ssh/scp/sftp.
+- **Agent forwarding (-A)** toggle and an **Advanced SSH options** editor
+  (custom `-o` options).
+- **Quick Connect** (⇧⌘K) — connect to an ad-hoc `user@host:port` without
+  saving a profile.
+- **Font zoom** — Bigger/Smaller/Actual Size (⌘+ / ⌘− / ⌘0), live-applied.
+
 ## [0.3.0] — 2026-07-06
 
 Completes prateek-term feature parity with the last remaining item: **tab

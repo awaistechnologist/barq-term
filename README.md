@@ -31,7 +31,8 @@ It is built AI-first around three ideas:
 - 6 built-in themes (Catppuccin Mocha/Latte, Dracula, Nord, Tokyo Night, Solarized Dark)
 
 ### Connections
-- **SSH** — agent/password/key auth, jump hosts (ProxyJump), **Cloudflare Access**, port forwarding (-L/-R/-D SOCKS5), keep-alives, legacy SCP mode for BusyBox/dropbear devices
+- **SSH** — agent / password / identity-file / pasted-key auth (Browse to pick a key), agent forwarding, custom `-o` options, jump hosts (ProxyJump), **Cloudflare Access**, port forwarding (-L/-R/-D SOCKS5), keep-alives, legacy SCP mode for BusyBox/dropbear devices
+- **Quick Connect** (⇧⌘K) for ad-hoc `user@host:port`, and font zoom (⌘+/⌘−/⌘0)
 - **Serial** — raw termios, all baud rates, data/stop bits, parity
 - **Telnet** — built-in client with IAC negotiation (no system telnet needed)
 - **Local shells** with cwd tracking; **SFTP** session tabs

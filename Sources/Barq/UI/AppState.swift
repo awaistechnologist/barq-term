@@ -278,6 +278,21 @@ final class AppState: ObservableObject {
         attachTab(for: session)
     }
 
+    /// Connect to an ad-hoc `user@host:port` without saving a profile.
+    func quickConnect(_ spec: String) {
+        guard let profile = QuickConnect.profile(from: spec) else { return }
+        connect(profile: profile)
+    }
+
+    /// Adjust the terminal font size (⌘+ / ⌘−), clamped; live-restyles.
+    func adjustFontSize(by delta: Double) {
+        settings.fontSize = min(32, max(8, settings.fontSize + delta))
+    }
+
+    func resetFontSize() {
+        settings.fontSize = 13
+    }
+
     private func attachTab(for session: TerminalSession) {
         var tab = TerminalTab(root: .leaf(session.id), focusedSessionID: session.id)
         tab.groupID = autoGroupID(for: session.profile)

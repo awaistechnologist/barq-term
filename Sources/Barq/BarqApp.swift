@@ -40,10 +40,19 @@ struct BarqApp: App {
                 Toggle("Broadcast Input to All Panes", isOn: $state.broadcastInput)
                     .keyboardShortcut("i", modifiers: [.command, .shift])
                 Divider()
+                Button("Quick Connect…") { quickConnect() }
+                    .keyboardShortcut("k", modifiers: [.command, .shift])
                 Button("New Connection Profile…") {
                     state.editingProfile = nil
                     state.showingProfileEditor = true
                 }
+                Divider()
+                Button("Bigger Text") { state.adjustFontSize(by: 1) }
+                    .keyboardShortcut("+", modifiers: .command)
+                Button("Smaller Text") { state.adjustFontSize(by: -1) }
+                    .keyboardShortcut("-", modifiers: .command)
+                Button("Actual Size") { state.resetFontSize() }
+                    .keyboardShortcut("0", modifiers: .command)
             }
             CommandMenu("AI") {
                 Button("AI Command…") { state.composerVisible = true }
@@ -87,6 +96,22 @@ struct BarqApp: App {
         Settings {
             SettingsView()
         }
+    }
+}
+
+@MainActor
+private func quickConnect() {
+    let alert = NSAlert()
+    alert.messageText = "Quick Connect"
+    alert.informativeText = "Enter an SSH target, e.g. user@host or user@host:2222"
+    alert.addButton(withTitle: "Connect")
+    alert.addButton(withTitle: "Cancel")
+    let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+    field.placeholderString = "user@host:port"
+    alert.accessoryView = field
+    alert.window.initialFirstResponder = field
+    if alert.runModal() == .alertFirstButtonReturn {
+        AppState.shared.quickConnect(field.stringValue)
     }
 }
 
