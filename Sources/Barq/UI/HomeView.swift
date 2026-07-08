@@ -23,6 +23,10 @@ struct HomeView: View {
         OmniIntent.suggestions(query: query, profiles: profiles.profiles)
     }
 
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: BarqDesign.s5) {
@@ -31,7 +35,11 @@ struct HomeView: View {
                 omniBar
                 machines
                 recents
-                Spacer(minLength: 40)
+                Spacer(minLength: 24)
+                Text("Barq \(appVersion)")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(theme.textTertiary)
+                Spacer(minLength: 16)
             }
             .frame(maxWidth: 720)
             .frame(maxWidth: .infinity)
