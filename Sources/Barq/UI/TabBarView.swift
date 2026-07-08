@@ -14,6 +14,17 @@ struct TabBarView: View {
             // Clear the traffic-light buttons.
             Spacer().frame(width: BarqDesign.trafficLightInset)
 
+            // Lightning wordmark.
+            HStack(spacing: 5) {
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(theme.electric)
+                Text("Barq")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.textPrimary)
+            }
+            .padding(.trailing, BarqDesign.s2)
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: BarqDesign.s2) {
                     ForEach(state.tabLayout) { item in

@@ -7,7 +7,9 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            theme.chrome.ignoresSafeArea()
+            // The chrome/gutter tone sits behind everything; terminal panes are
+            // darker cards that float on top of it.
+            theme.elevated.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 TabBarView(state: state)
@@ -22,7 +24,6 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     if state.aiPanelVisible {
                         AIPanelView(state: state)
-                            .overlay(alignment: .leading) { theme.hairline.frame(width: 1) }
                             .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }

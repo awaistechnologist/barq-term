@@ -51,12 +51,15 @@ extension BarqTheme {
     /// The electric accent for this theme's light/dark mode.
     var electric: Color { BarqDesign.accent(dark: isDark) }
 
-    /// Base window/terminal background.
+    /// The terminal's own background (also the "hero card" color).
     var chrome: Color { Color(nsColor: backgroundColor) }
-    /// Panels that sit above the base (sidebar, AI panel, tab bar).
-    var elevated: Color { elevate(isDark ? 0.05 : 0.035) }
+    /// App chrome behind the terminal cards (sidebar, top bar, gutters).
+    /// Clearly distinct from the terminal so panes read as floating cards.
+    var elevated: Color { elevate(isDark ? 0.12 : 0.06) }
+    /// A second, stronger elevation for controls on the chrome.
+    var elevatedStrong: Color { elevate(isDark ? 0.18 : 0.10) }
     /// Hover state for rows/chips.
-    var hoverFill: Color { Color(nsColor: foregroundColor).opacity(0.06) }
+    var hoverFill: Color { Color(nsColor: foregroundColor).opacity(0.08) }
     /// Selected surface tinted with the accent.
     var selectedFill: Color { electric.opacity(isDark ? 0.16 : 0.14) }
     /// Very subtle separators — used sparingly instead of hard dividers.

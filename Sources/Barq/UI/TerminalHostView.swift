@@ -122,11 +122,13 @@ struct TerminalPaneView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
         }
+        .background(theme.chrome)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(isFocused ? theme.electric.opacity(0.55) : theme.hairline, lineWidth: isFocused ? 1.5 : 1)
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(isFocused ? theme.electric.opacity(0.6) : theme.hairline, lineWidth: isFocused ? 1.5 : 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .shadow(color: .black.opacity(theme.isDark ? 0.28 : 0.10), radius: 6, y: 2)
         .padding(BarqDesign.s2)
     }
 }
