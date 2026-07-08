@@ -28,9 +28,6 @@ final class SettingsStore: ObservableObject {
     @Published var fontSize: Double {
         didSet { defaults.set(fontSize, forKey: "fontSize") }
     }
-    @Published var useMetalRenderer: Bool {
-        didSet { defaults.set(useMetalRenderer, forKey: "useMetalRenderer") }
-    }
     @Published var shellPath: String {
         didSet { defaults.set(shellPath, forKey: "shellPath") }
     }
@@ -71,7 +68,6 @@ final class SettingsStore: ObservableObject {
         themeID = defaults.string(forKey: "themeID") ?? Themes.catppuccinMocha.id
         fontName = defaults.string(forKey: "fontName") ?? "Menlo"
         fontSize = defaults.object(forKey: "fontSize") as? Double ?? 13.0
-        useMetalRenderer = defaults.object(forKey: "useMetalRenderer") as? Bool ?? false
         shellPath = defaults.string(forKey: "shellPath") ?? (ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh")
         aiProvider = AIProvider(rawValue: defaults.string(forKey: "aiProvider") ?? "") ?? .ollama
         ollamaBaseURL = defaults.string(forKey: "ollamaBaseURL") ?? "http://127.0.0.1:11434"
