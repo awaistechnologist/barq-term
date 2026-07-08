@@ -2,6 +2,36 @@
 
 All notable changes to Barq are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.1] — 2026-07-08
+
+Polish, a critical rendering fix, local-AI setup, and the release pipeline.
+184 tests across 32 suites.
+
+### Fixed
+- **Terminals rendered blank** — SwiftTerm's Metal path drew nothing on some
+  GPUs (the buffer filled but didn't paint). Forced CoreGraphics rendering.
+- **Keyboard focus** reliably lands in the terminal, not the sidebar search.
+- **Data loss guardrail** — a `BARQ_SUPPORT_DIR` override keeps diagnostics off
+  the user's real profiles/vault.
+
+### Added
+- **Local-AI setup, built in** — Settings → AI recommends the best Ollama model
+  for this Mac (via llm-checker if installed, else a RAM-tiered advisor) and
+  installs it with one click + progress.
+- **"Connecting…" state**, `ConnectTimeout`, a **Reconnect** button, and the
+  failure reason shown when an SSH session can't connect (no more silent blank).
+- **Terminal right-click quick actions** — New Tab Here, Save Directory as a
+  Host, Copy Working Directory (plus copy/paste/select-all).
+- **Quick Connect** (⇧⌘K), **font zoom** (⌘+/⌘−/⌘0), a visible **sidebar toggle**,
+  and **drag a tab into the body to open it in its own window**.
+- **Release pipeline** — DMG builder, an in-app **update notifier** (polls
+  GitHub releases; "Check for Updates…" menu item), and a **Homebrew cask**.
+
+### Changed
+- Decluttered the top-right controls into a labeled overflow menu; every icon
+  control has a tooltip; single-click (not double) connects a host — the macOS
+  idiom. Seamless top bar sits inline with the traffic lights.
+
 ## [0.6.0] — 2026-07-08
 
 A reimagined terminal journey — you open Barq to a home, not a blank prompt.
@@ -21,6 +51,8 @@ A reimagined terminal journey — you open Barq to a home, not a blank prompt.
   get their restored sessions.
 
 178 tests across 30 suites.
+
+## [0.5.0] — 2026-07-08
 
 A ground-up visual redesign — seamless, theme-driven, and electric.
 

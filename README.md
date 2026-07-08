@@ -10,7 +10,7 @@
 
 ---
 
-Barq is a modern terminal emulator and connection manager for macOS, written in **pure Swift** (SwiftUI + [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) with Metal GPU rendering). No Electron, no web views, no lag.
+Barq is a modern terminal emulator and connection manager for macOS, written in **pure Swift** (SwiftUI + [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm)). No Electron, no web views, no lag.
 
 It is built AI-first around three ideas:
 
@@ -21,7 +21,7 @@ It is built AI-first around three ideas:
 ## Features
 
 ### Terminal
-- Native SwiftTerm emulator, true color, Metal GPU renderer
+- Native SwiftTerm emulator, true color, crisp CoreGraphics rendering
 - Tabs, **split panes** (⌘D / ⇧⌘D), **tear-off windows** (⇧⌘N)
 - **Tab groups** — colored, collapsible groups that auto-form from a profile's tag; drag tabs between groups, rename/recolor, collapse
 - **Command palette** (⇧⌘P) and **global search** (⇧⌘F) across every session's scrollback
@@ -109,7 +109,7 @@ If the variable were policy `approval`, you'd get a native prompt before the rea
 TDD is the house style — the logic layer is fully covered and the suite runs in ~2s:
 
 ```bash
-./scripts/test.sh                      # full suite (127 tests / 21 suites)
+./scripts/test.sh                      # full suite (184 tests / 32 suites)
 ./scripts/test.sh --filter VaultStore  # one suite
 swift build                            # app + barq-mcp
 ```
@@ -118,10 +118,10 @@ Requirements: macOS 13+, Swift 6 toolchain (Command Line Tools are enough — no
 
 ## Roadmap
 
-Shipped recently: tab groups (0.3.0); session restore, fleet `run_on_tag`, session recording, agent guardrails, SFTP, global search (0.2.x).
+Shipped recently: Barq Home + omni-bar, in-app model advisor + one-click Ollama, DMG + Homebrew cask + in-app update notifier (0.5–0.7); tab groups (0.3).
 
 Next:
-- [ ] Developer ID signing + notarization, Homebrew cask
+- [ ] Developer ID signing + notarization (drops the Gatekeeper prompt; enables Sparkle self-update)
 - [ ] Block-based output (AI-addressable command/output units)
 - [ ] SFTP dual-pane browser (beyond the interactive SFTP tab)
 - [ ] Runbooks: record a session → parameterized, replayable procedure

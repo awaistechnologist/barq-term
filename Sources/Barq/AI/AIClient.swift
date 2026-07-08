@@ -90,7 +90,7 @@ struct OpenRouterClient: AIClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("https://github.com/barq-terminal/barq", forHTTPHeaderField: "HTTP-Referer")
+        request.setValue("https://github.com/awaistechnologist/barq-term", forHTTPHeaderField: "HTTP-Referer")
         request.setValue("Barq Terminal", forHTTPHeaderField: "X-Title")
         request.timeoutInterval = 120
         let body: [String: Any] = [

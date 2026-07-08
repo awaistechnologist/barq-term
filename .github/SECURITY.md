@@ -5,14 +5,15 @@ MCP server that lets AI agents drive sessions. Security is a first-class concern
 
 ## Reporting a vulnerability
 
-Please **do not** open a public issue for security problems. Email
-`security@barq.invalid` (replace with the maintainer's address) with:
+Please **do not** open a public issue for security problems. Use GitHub's
+**private vulnerability reporting** for this repo (the Security tab →
+"Report a vulnerability"), including:
 
 - a description of the issue and its impact,
 - steps to reproduce or a proof of concept,
-- affected version (`barq --version` / the About panel).
+- the affected version (shown on the Barq Home screen).
 
-You'll get an acknowledgement within a few days. Please give us a reasonable
+You'll get an acknowledgement within a few days. Please give a reasonable
 window to ship a fix before public disclosure.
 
 ## Security model

@@ -21,7 +21,7 @@ Every behavior change starts with (or immediately gains) a test. No feature
 lands without coverage of its logic layer.
 
 ```bash
-./scripts/test.sh                      # full suite (127 tests / 21 suites)
+./scripts/test.sh                      # full suite (184 tests / 32 suites)
 ./scripts/test.sh --filter VaultStore  # one suite
 ```
 
