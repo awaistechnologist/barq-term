@@ -53,8 +53,11 @@ struct HomeView: View {
 
     private var greeting: some View {
         VStack(spacing: 6) {
-            HStack(spacing: 12) {
-                BarqLogo(theme: theme, badge: 34, showWordmark: false)
+            HStack(spacing: 10) {
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(theme.electric)
+                    .shadow(color: theme.electric.opacity(0.5), radius: 12)
                 Text(timeGreeting)
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(theme.textPrimary)

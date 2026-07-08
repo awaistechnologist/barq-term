@@ -54,6 +54,9 @@ struct ContentView: View {
                     }
                 }
             }
+            // Extend the top bar up under the (hidden) titlebar so the traffic
+            // lights sit inline with it — no empty band above the top bar.
+            .ignoresSafeArea(.container, edges: .top)
 
             overlayLayer
             WindowConfigurator().frame(width: 0, height: 0)

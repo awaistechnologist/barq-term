@@ -18,7 +18,14 @@ struct TabBarView: View {
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { state.goHome() }
             } label: {
-                BarqLogo(theme: theme, badge: 20, wordmark: 14)
+                HStack(spacing: 5) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(theme.electric)
+                    Text("Barq")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(state.selectedTabID == nil ? theme.electric : theme.textPrimary)
+                }
             }
             .buttonStyle(.plain)
             .help("Home")
