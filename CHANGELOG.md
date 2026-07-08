@@ -2,7 +2,25 @@
 
 All notable changes to Barq are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.5.0] — 2026-07-08
+## [0.6.0] — 2026-07-08
+
+A reimagined terminal journey — you open Barq to a home, not a blank prompt.
+
+### Added
+- **Barq Home** — the app now opens to an intelligent launch surface: a
+  time-based greeting, your machines as live cards (kind, tags, AI badge),
+  and "jump back in" recents. The lightning wordmark returns you here anytime.
+- **Omni-bar** — one input that takes *intent*, not just syntax. It classifies
+  what you type and offers ranked actions:
+  - a host name → **connect**
+  - a command → **run in a new shell**
+  - a question ("why is the disk full?") → **ask Barq AI**
+  - anything → **search all sessions**
+  The classifier is pure and unit-tested (arrow keys + ⏎ to run the top hit).
+- **Recents** persist across launches; new users land on Home, returning users
+  get their restored sessions.
+
+178 tests across 30 suites.
 
 A ground-up visual redesign — seamless, theme-driven, and electric.
 

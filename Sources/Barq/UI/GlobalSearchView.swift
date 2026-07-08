@@ -65,7 +65,14 @@ struct GlobalSearchView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.1)))
         .shadow(radius: 24, y: 8)
-        .onAppear { fieldFocused = true }
+        .onAppear {
+            if !state.searchPrefill.isEmpty {
+                query = state.searchPrefill
+                state.searchPrefill = ""
+                runSearch()
+            }
+            fieldFocused = true
+        }
         .onExitCommand { state.globalSearchVisible = false }
     }
 

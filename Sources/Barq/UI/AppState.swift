@@ -85,6 +85,10 @@ final class AppState: ObservableObject {
     @Published var broadcastInput = false
     @Published var editingProfile: ConnectionProfile?
     @Published var showingProfileEditor = false
+    /// A question routed from the omni-bar for the AI panel to answer.
+    @Published var pendingAIQuestion: String?
+    /// Recently connected profile IDs (most recent first), persisted.
+    @Published var recentProfileIDs: [UUID] = AppState.loadRecents()
 
     private var bridge: BridgeServer?
     private var cancellables = Set<AnyCancellable>()
@@ -276,6 +280,63 @@ final class AppState: ObservableObject {
     func connect(profile: ConnectionProfile, launch: SessionLaunch = .shell) {
         let session = sessions.open(profile: profile, origin: .user, launch: launch)
         attachTab(for: session)
+        noteRecent(profile.id)
+    }
+
+    // MARK: Home & omni-bar journey
+
+    /// Return to the Home launch surface (tabs stay open).
+    func goHome() { selectedTabID = nil }
+
+    /// Run the result the omni-bar produced.
+    func perform(_ kind: OmniKind) {
+        switch kind {
+        case .connect(let id):
+            if let profile = profiles.profile(id: id) { connect(profile: profile) }
+        case .runLocal(let command):
+            runInNewLocalTab(command)
+        case .askAI(let question):
+            askAI(question)
+        case .search(let query):
+            searchPrefill = query
+            globalSearchVisible = true
+        }
+    }
+
+    /// Prefill for the global-search overlay when opened from the omni-bar.
+    @Published var searchPrefill: String = ""
+
+    func runInNewLocalTab(_ command: String) {
+        newLocalTab()
+        let sessionID = selectedTab?.focusedSessionID
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            self?.sessions.session(id: sessionID ?? "")?.send(command + "\n")
+        }
+    }
+
+    func askAI(_ question: String) {
+        if selectedTab == nil { newLocalTab() }
+        pendingAIQuestion = question
+        aiPanelVisible = true
+    }
+
+    // MARK: Recents
+
+    private static let recentsKey = "recentProfileIDs"
+
+    private static func loadRecents() -> [UUID] {
+        (UserDefaults.standard.stringArray(forKey: recentsKey) ?? []).compactMap(UUID.init)
+    }
+
+    private func noteRecent(_ id: UUID) {
+        var ids = recentProfileIDs.filter { $0 != id }
+        ids.insert(id, at: 0)
+        recentProfileIDs = Array(ids.prefix(8))
+        UserDefaults.standard.set(recentProfileIDs.map(\.uuidString), forKey: Self.recentsKey)
+    }
+
+    var recentProfiles: [ConnectionProfile] {
+        recentProfileIDs.compactMap { profiles.profile(id: $0) }
     }
 
     /// Connect to an ad-hoc `user@host:port` without saving a profile.

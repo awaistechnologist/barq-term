@@ -100,6 +100,35 @@ struct AIPanelView: View {
         .onReceive(NotificationCenter.default.publisher(for: .barqExplainRequested)) { _ in
             explain()
         }
+        .onChange(of: state.pendingAIQuestion) { question in
+            guard let question, !question.isEmpty else { return }
+            state.pendingAIQuestion = nil
+            ask(question)
+        }
+        .onAppear {
+            if let question = state.pendingAIQuestion, !question.isEmpty {
+                state.pendingAIQuestion = nil
+                ask(question)
+            }
+        }
+    }
+
+    /// Ask a specific question (routed from the omni-bar).
+    private func ask(_ question: String) {
+        guard !busy else { return }
+        entries.append(ChatEntry(message: AIMessage(role: .user, content: question)))
+        busy = true
+        let history = entries.map(\.message)
+        let session = state.focusedSession
+        Task {
+            defer { busy = false }
+            do {
+                let answer = try await AIService.shared.chat(history: history, session: session)
+                entries.append(ChatEntry(message: AIMessage(role: .assistant, content: answer)))
+            } catch {
+                entries.append(ChatEntry(message: AIMessage(role: .assistant, content: "⚠️ \(error.localizedDescription)")))
+            }
+        }
     }
 
     private func sendMessage() {

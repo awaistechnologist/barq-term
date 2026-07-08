@@ -14,15 +14,21 @@ struct TabBarView: View {
             // Clear the traffic-light buttons.
             Spacer().frame(width: BarqDesign.trafficLightInset)
 
-            // Lightning wordmark.
-            HStack(spacing: 5) {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(theme.electric)
-                Text("Barq")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(theme.textPrimary)
+            // Lightning wordmark — click to return Home.
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { state.goHome() }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(theme.electric)
+                    Text("Barq")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(state.selectedTabID == nil ? theme.electric : theme.textPrimary)
+                }
             }
+            .buttonStyle(.plain)
+            .help("Home")
             .padding(.trailing, BarqDesign.s2)
 
             ScrollView(.horizontal, showsIndicators: false) {

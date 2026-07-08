@@ -38,8 +38,10 @@ struct ContentView: View {
             ProfileEditorView(state: state, profile: state.editingProfile)
         }
         .onAppear {
+            // Land on Home. Returning users get their restored sessions; new
+            // users see the Home launch surface (no auto blank shell).
             if state.tabs.isEmpty {
-                if !state.restoreSessions() { state.newLocalTab() }
+                _ = state.restoreSessions()
             }
             state.focusActiveTerminal()
         }
@@ -89,57 +91,8 @@ struct ContentView: View {
             SplitNodeView(node: tab.root, focusedSessionID: tab.focusedSessionID, theme: theme)
                 .id(tab.id)
         } else {
-            WelcomeView(state: state, theme: theme)
+            HomeView(state: state)
         }
     }
 }
 
-/// Polished empty/welcome state.
-private struct WelcomeView: View {
-    @ObservedObject var state: AppState
-    let theme: BarqTheme
-
-    var body: some View {
-        VStack(spacing: BarqDesign.s4) {
-            ZStack {
-                Circle()
-                    .fill(theme.electric.opacity(0.14))
-                    .frame(width: 84, height: 84)
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 38, weight: .bold))
-                    .foregroundStyle(theme.electric)
-            }
-            VStack(spacing: 6) {
-                Text("Barq")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(theme.textPrimary)
-                Text("Lightning for your machines")
-                    .font(.system(size: 13))
-                    .foregroundStyle(theme.textSecondary)
-            }
-            Button {
-                state.newLocalTab()
-            } label: {
-                Label("New Terminal", systemImage: "plus")
-            }
-            .buttonStyle(AccentButtonStyle(theme: theme))
-
-            HStack(spacing: BarqDesign.s3) {
-                hint("⌘T", "New tab")
-                hint("⇧⌘K", "Quick connect")
-                hint("⌘K", "Ask AI")
-                hint("⇧⌘P", "Palette")
-            }
-            .padding(.top, BarqDesign.s2)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.chrome)
-    }
-
-    private func hint(_ key: String, _ label: String) -> some View {
-        HStack(spacing: 5) {
-            Keycap(text: key, theme: theme)
-            Text(label).font(.system(size: 11)).foregroundStyle(theme.textTertiary)
-        }
-    }
-}
