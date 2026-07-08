@@ -80,22 +80,39 @@ struct TabBarView: View {
                 tint: state.sidebarVisible ? nil : theme.textTertiary,
                 help: state.sidebarVisible ? "Hide hosts sidebar (⌘B)" : "Show hosts sidebar (⌘B)"
             ) { withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) { state.sidebarVisible.toggle() } }
-            TopBarButton(symbol: "magnifyingglass", theme: theme, help: "Command palette (⇧⌘P)") {
-                state.paletteVisible = true
-            }
-            TopBarButton(
-                symbol: state.broadcastInput ? "dot.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right",
-                theme: theme, tint: state.broadcastInput ? .orange : nil,
-                help: state.broadcastInput ? "Broadcasting to all panes — click to stop" : "Broadcast input to all panes"
-            ) { state.broadcastInput.toggle() }
+
             TopBarButton(
                 symbol: "sparkles", theme: theme,
                 tint: state.aiPanelVisible ? theme.electric : nil,
                 help: "Toggle AI panel (⇧⌘A)"
             ) { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { state.aiPanelVisible.toggle() } }
+
             TopBarButton(symbol: "plus", theme: theme, help: "New tab (⌘T)") {
                 state.newLocalTab()
             }
+
+            // Everything else lives in a labeled overflow menu, so no icon is a
+            // mystery — the menu spells each action out in words.
+            Menu {
+                Button { state.paletteVisible = true } label: { Label("Command Palette", systemImage: "command") }
+                Button { state.globalSearchVisible = true } label: { Label("Search All Sessions", systemImage: "magnifyingglass") }
+                Button { state.composerVisible = true } label: { Label("Ask AI to Write a Command", systemImage: "wand.and.stars") }
+                Divider()
+                Toggle(isOn: $state.broadcastInput) { Label("Broadcast Input to All Panes", systemImage: "dot.radiowaves.left.and.right") }
+                Button { state.splitFocused(direction: .horizontal) } label: { Label("Split Right", systemImage: "rectangle.split.2x1") }
+                Button { state.splitFocused(direction: .vertical) } label: { Label("Split Down", systemImage: "rectangle.split.1x2") }
+                Divider()
+                Button { state.editingProfile = nil; state.showingProfileEditor = true } label: { Label("New Connection…", systemImage: "plus.circle") }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(theme.textSecondary)
+                    .frame(width: 28, height: 28)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 30)
+            .help("More actions")
         }
     }
 }
