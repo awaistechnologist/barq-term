@@ -92,6 +92,7 @@ struct AIPanelView: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(input.isEmpty || busy)
+                .help("Send message (⏎)")
             }
             .padding(10)
         }

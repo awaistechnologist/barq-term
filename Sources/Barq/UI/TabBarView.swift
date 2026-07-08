@@ -254,6 +254,7 @@ private struct TabItemView: View {
             }
             .buttonStyle(.plain)
             .opacity(hovering || isSelected ? 1 : 0)
+            .help("Close tab (⌘W)")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)

@@ -146,6 +146,7 @@ struct ProfileEditorView: View {
                                     Image(systemName: "minus.circle")
                                 }
                                 .buttonStyle(.borderless)
+                                .help("Remove this forwarding rule")
                             }
                             if forward.kind == .dynamic {
                                 HStack {
@@ -218,6 +219,7 @@ struct ProfileEditorView: View {
                                 Image(systemName: "minus.circle")
                             }
                             .buttonStyle(.borderless)
+                            .help("Remove this action")
                         }
                     }
                     Button {

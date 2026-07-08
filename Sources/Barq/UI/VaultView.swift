@@ -76,6 +76,7 @@ struct VaultView: View {
                                 Image(systemName: revealed.contains(item.name) ? "eye.slash" : "eye")
                             }
                             .buttonStyle(.borderless)
+                            .help(revealed.contains(item.name) ? "Hide value" : "Show value")
                         }
                         .contextMenu {
                             Button("Edit…") {

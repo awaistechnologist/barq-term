@@ -167,8 +167,9 @@ private struct ProfileRow: View {
         )
         .padding(.horizontal, BarqDesign.s2 - 2)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { state.connect(profile: profile) }
+        .onTapGesture { state.connect(profile: profile) }
         .onHover { hovering = $0 }
+        .help("Connect to \(profile.name.isEmpty ? profile.target : profile.name) — right-click for more")
         .contextMenu {
             Button("Connect") { state.connect(profile: profile) }
             if profile.kind == .ssh {
