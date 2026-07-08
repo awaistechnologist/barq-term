@@ -129,4 +129,6 @@ Next:
 
 ## License
 
-MIT
+[PolyForm Noncommercial 1.0.0](LICENSE) — free for personal and non-commercial
+use. For commercial use, please reach out via the repo. "Barq" and its logo are
+trademarks of the author.
