@@ -71,7 +71,7 @@ final class SettingsStore: ObservableObject {
         themeID = defaults.string(forKey: "themeID") ?? Themes.catppuccinMocha.id
         fontName = defaults.string(forKey: "fontName") ?? "Menlo"
         fontSize = defaults.object(forKey: "fontSize") as? Double ?? 13.0
-        useMetalRenderer = defaults.object(forKey: "useMetalRenderer") as? Bool ?? true
+        useMetalRenderer = defaults.object(forKey: "useMetalRenderer") as? Bool ?? false
         shellPath = defaults.string(forKey: "shellPath") ?? (ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh")
         aiProvider = AIProvider(rawValue: defaults.string(forKey: "aiProvider") ?? "") ?? .ollama
         ollamaBaseURL = defaults.string(forKey: "ollamaBaseURL") ?? "http://127.0.0.1:11434"

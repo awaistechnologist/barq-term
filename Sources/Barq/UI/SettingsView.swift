@@ -29,7 +29,6 @@ private struct GeneralSettings: View {
                 Slider(value: $settings.fontSize, in: 9...22, step: 1) {
                     Text("Font size: \(Int(settings.fontSize))")
                 }
-                Toggle("GPU rendering (Metal)", isOn: $settings.useMetalRenderer)
                 Text("Theme and font changes apply to new terminals.")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)

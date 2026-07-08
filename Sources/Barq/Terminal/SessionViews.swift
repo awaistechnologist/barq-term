@@ -141,8 +141,9 @@ extension TerminalView {
         } else {
             self.font = NSFont.monospacedSystemFont(ofSize: settings.fontSize, weight: .regular)
         }
-        if settings.useMetalRenderer {
-            try? setUseMetal(true)
-        }
+        // Force CoreGraphics rendering. SwiftTerm's Metal path currently paints
+        // a blank view on some GPUs (the buffer fills but nothing draws), which
+        // made terminals appear empty. CG is reliable; revisit Metal later.
+        try? setUseMetal(false)
     }
 }
