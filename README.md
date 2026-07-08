@@ -69,6 +69,7 @@ Safety model:
 **Homebrew (recommended — handles updates via `brew upgrade`):**
 ```bash
 brew tap awaistechnologist/barq
+brew trust awaistechnologist/barq      # Homebrew 6+ requires trusting third-party cask taps
 brew install --cask barq-term          # add --no-quarantine to skip the Gatekeeper prompt
 ```
 
