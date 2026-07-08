@@ -70,6 +70,7 @@ final class TerminalSession: ObservableObject, Identifiable {
             view.onData = { [weak self] slice in
                 self?.buffer.append(slice)
                 self?.recordSlice(slice)
+                self?.markConnectedOnFirstData()
                 self?.autoTypePasswordIfPrompted()
             }
             view.onExit = { [weak self] code in
@@ -142,7 +143,9 @@ final class TerminalSession: ObservableObject, Identifiable {
                 ? SSHCommandBuilder.sftpArguments(for: connectProfile)
                 : SSHCommandBuilder.sshArguments(for: connectProfile)
             view.startProcess(executable: executable, args: args, environment: env)
-            status = .connected
+            // Stay "connecting" until the first byte arrives (markConnectedOnFirstData),
+            // so the UI shows a Connecting… state instead of a mystery blank pane.
+            status = .connecting
         case .serial:
             let backend = SerialBackend(
                 path: profile.serialDevice,
@@ -168,6 +171,14 @@ final class TerminalSession: ObservableObject, Identifiable {
         } catch {
             status = .exited(nil)
             view.feed(text: "\r\n\u{1B}[31m\(error.localizedDescription)\u{1B}[0m\r\n")
+        }
+    }
+
+    /// Flip to "connected" the moment the session produces any output.
+    private nonisolated func markConnectedOnFirstData() {
+        Task { @MainActor [weak self] in
+            guard let self, case .connecting = self.status else { return }
+            self.status = .connected
         }
     }
 

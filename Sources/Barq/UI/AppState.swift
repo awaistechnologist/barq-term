@@ -34,6 +34,15 @@ indirect enum SplitNode {
         }
     }
 
+    /// Swap one leaf's session id for another (used by reconnect-in-place).
+    func replacingLeaf(_ oldID: String, with newID: String) -> SplitNode {
+        switch self {
+        case .leaf(let id): return id == oldID ? .leaf(newID) : self
+        case .split(let dir, let a, let b):
+            return .split(dir, a.replacingLeaf(oldID, with: newID), b.replacingLeaf(oldID, with: newID))
+        }
+    }
+
     /// Remove a leaf; returns nil if the tree becomes empty.
     func removing(sessionID: String) -> SplitNode? {
         switch self {
@@ -536,6 +545,18 @@ final class AppState: ObservableObject {
 
     func detachFocusedSession() {
         if let session = focusedSession { detachSession(session.id) }
+    }
+
+    /// Reconnect a dead session in place, keeping its tab/pane position.
+    func reconnect(_ sessionID: String) {
+        guard let old = sessions.session(id: sessionID),
+              let idx = tabs.firstIndex(where: { $0.root.sessionIDs.contains(sessionID) }) else { return }
+        let profile = old.profile
+        let fresh = sessions.open(profile: profile, origin: .user)
+        tabs[idx].root = tabs[idx].root.replacingLeaf(sessionID, with: fresh.id)
+        if tabs[idx].focusedSessionID == sessionID { tabs[idx].focusedSessionID = fresh.id }
+        sessions.close(id: sessionID)
+        focusActiveTerminal()
     }
 
     /// Tear a whole tab out into its own window (uses its focused pane).

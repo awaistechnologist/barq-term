@@ -53,7 +53,11 @@ enum SSHCommandBuilder {
         for option in profile.extraSSHOptions where !option.isEmpty {
             args += ["-o", option]
         }
-        // Keep sessions alive through short network hiccups.
+        // Fail fast on an unreachable host (default is ~75s of silent hang),
+        // then keep the session alive through short hiccups once connected.
+        if !profile.extraSSHOptions.contains(where: { $0.lowercased().hasPrefix("connecttimeout") }) {
+            args += ["-o", "ConnectTimeout=15"]
+        }
         args += ["-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3"]
 
         var destination = profile.host

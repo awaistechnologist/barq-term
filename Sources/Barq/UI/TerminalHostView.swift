@@ -103,9 +103,27 @@ struct TerminalPaneView: View {
     let isFocused: Bool
     let theme: BarqTheme
 
+    /// Last non-empty output line — shown on the exit overlay to explain failures.
+    private var lastMeaningfulLine: String? {
+        session.readOutput(maxBytes: 2000)
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .last { !$0.isEmpty }
+    }
+
     var body: some View {
         ZStack {
             TerminalRepresentable(session: session, isActive: isFocused)
+            if case .connecting = session.status {
+                VStack(spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text("Connecting to \(session.profile.target)…")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textSecondary)
+                }
+                .padding(18)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
             if case .exited(let code) = session.status {
                 VStack(spacing: 8) {
                     Image(systemName: "bolt.slash")
@@ -114,8 +132,16 @@ struct TerminalPaneView: View {
                     Text("Session ended\(code.map { " (exit \($0))" } ?? "")")
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                    Button("Close Pane") {
-                        AppState.shared.closeSession(session.id)
+                    if let reason = lastMeaningfulLine {
+                        Text(reason)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 340)
+                    }
+                    HStack(spacing: 8) {
+                        Button("Reconnect") { AppState.shared.reconnect(session.id) }
+                        Button("Close Pane") { AppState.shared.closeSession(session.id) }
                     }
                 }
                 .padding(20)
