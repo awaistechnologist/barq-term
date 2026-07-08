@@ -2,6 +2,29 @@
 
 All notable changes to Barq are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.0] — 2026-07-08
+
+A ground-up visual redesign — seamless, theme-driven, and electric.
+
+### Changed — UI/UX
+- **Seamless window.** Hidden title bar with full-size content; a single top bar
+  now spans the full width (and is the window-drag region), so the terminal
+  reaches every edge. No more stacked title-bar-plus-tab-bar chrome.
+- **The whole app adopts the active theme.** New design-token layer derives the
+  sidebar, top bar, panels, and surfaces from the terminal theme's own colors
+  (elevated/hover/selected/hairline tones) instead of flat gray — it reads as
+  one designed object that shifts with the theme.
+- **Electric accent.** A signature Barq-lightning accent runs through the
+  selected tab, focus ring, AI chip, and primary buttons.
+- **Refined top bar + tabs** — soft pills, accent selection, quieter controls.
+- **Theme-driven sidebar** with a custom list, hover rows, and an electric AI
+  chip; **hard dividers replaced** by tone + subtle hairlines.
+- **Polished overlays** — command palette / composer / search now sit on a
+  blurred scrim and spring in, with an accent-highlighted selection.
+- **New welcome screen** with the lightning mark, tagline, and keycap hints.
+- **Motion** on sidebar/AI-panel show-hide and tab changes; terminal panes get a
+  subtle inset and an accent focus ring.
+
 ## [0.4.1] — 2026-07-08
 
 ### Fixed — data loss on upgrade (important)

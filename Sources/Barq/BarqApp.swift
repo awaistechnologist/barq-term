@@ -10,6 +10,7 @@ struct BarqApp: App {
         WindowGroup {
             ContentView()
         }
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Tab") { state.newLocalTab() }

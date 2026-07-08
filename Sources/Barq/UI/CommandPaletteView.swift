@@ -11,9 +11,11 @@ struct PaletteAction: Identifiable {
 /// ⇧⌘P command palette: fuzzy access to every app action and profile.
 struct CommandPaletteView: View {
     @ObservedObject var state: AppState
+    @ObservedObject var settings = SettingsStore.shared
     @State private var query = ""
     @State private var highlighted = 0
     @FocusState private var fieldFocused: Bool
+    private var theme: BarqTheme { settings.theme }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -51,7 +53,11 @@ struct CommandPaletteView: View {
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
-                            .background(index == highlighted ? Color.accentColor.opacity(0.18) : .clear)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(index == highlighted ? theme.electric.opacity(0.18) : .clear)
+                                    .padding(.horizontal, 6)
+                            )
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 action.perform()
@@ -67,10 +73,10 @@ struct CommandPaletteView: View {
                 }
             }
         }
-        .frame(width: 560)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.1)))
-        .shadow(radius: 24, y: 8)
+        .frame(width: 600)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: BarqDesign.rOverlay))
+        .overlay(RoundedRectangle(cornerRadius: BarqDesign.rOverlay).strokeBorder(theme.hairline))
+        .shadow(color: .black.opacity(0.28), radius: 30, y: 12)
         .onAppear { fieldFocused = true }
         .onExitCommand { state.paletteVisible = false }
         .onChange(of: query) { _ in highlighted = 0 }

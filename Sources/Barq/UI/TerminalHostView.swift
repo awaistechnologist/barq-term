@@ -123,11 +123,11 @@ struct TerminalPaneView: View {
             }
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(isFocused ? Color(nsColor: theme.accentColor).opacity(0.55) : .clear, lineWidth: 2)
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(isFocused ? theme.electric.opacity(0.55) : theme.hairline, lineWidth: isFocused ? 1.5 : 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .padding(2)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(BarqDesign.s2)
     }
 }
 

@@ -1,24 +1,31 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// The seamless top bar: spans the full window width, hosts the tab strip and
+/// window controls, and doubles as the window-drag region. Adopts the active
+/// theme's colors.
 struct TabBarView: View {
     @ObservedObject var state: AppState
+    @ObservedObject var settings = SettingsStore.shared
+    private var theme: BarqTheme { settings.theme }
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: BarqDesign.s2) {
+            // Clear the traffic-light buttons.
+            Spacer().frame(width: BarqDesign.trafficLightInset)
+
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
+                HStack(spacing: BarqDesign.s2) {
                     ForEach(state.tabLayout) { item in
                         switch item {
                         case .group(let group, let members):
-                            GroupSegment(state: state, group: group, members: members)
+                            GroupSegment(state: state, group: group, members: members, theme: theme)
                         case .ungrouped(let tab):
-                            TabItemView(state: state, tab: tab)
+                            TabItemView(state: state, tab: tab, theme: theme)
                         }
                     }
-                    // Trailing drop zone: move a tab to the very end / ungroup it.
                     Color.clear
-                        .frame(width: 28, height: 24)
+                        .frame(width: 26, height: 24)
                         .contentShape(Rectangle())
                         .dropDestination(for: TabTransfer.self) { payload, _ in
                             guard let dragged = payload.first?.id else { return false }
@@ -26,36 +33,73 @@ struct TabBarView: View {
                             return true
                         }
                 }
-                .padding(.horizontal, 6)
-                .animation(.easeInOut(duration: 0.18), value: state.tabs.map(\.id))
-                .animation(.easeInOut(duration: 0.18), value: state.groups)
+                .padding(.vertical, 5)
             }
+            .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.tabs.map(\.id))
+            .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.groups)
 
-            Spacer(minLength: 0)
+            Spacer(minLength: BarqDesign.s2)
 
-            Button { state.newLocalTab() } label: {
-                Image(systemName: "plus")
-            }
-            .buttonStyle(.borderless)
-            .help("New local tab (⌘T)")
-
-            Button { state.broadcastInput.toggle() } label: {
-                Image(systemName: state.broadcastInput ? "dot.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right")
-                    .foregroundStyle(state.broadcastInput ? Color.orange : Color.secondary)
-            }
-            .buttonStyle(.borderless)
-            .help(state.broadcastInput ? "Broadcasting input to all panes in this tab — click to stop" : "Broadcast input to all panes in this tab")
-
-            Button { state.aiPanelVisible.toggle() } label: {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(state.aiPanelVisible ? Color.accentColor : Color.secondary)
-            }
-            .buttonStyle(.borderless)
-            .help("Toggle AI panel (⇧⌘A)")
-            .padding(.trailing, 8)
+            controls
         }
-        .frame(height: 36)
-        .background(.bar)
+        .padding(.horizontal, BarqDesign.s3)
+        .frame(height: BarqDesign.topBarHeight)
+        .background(
+            ZStack {
+                WindowDragArea()
+                theme.elevated
+            }
+        )
+        .overlay(alignment: .bottom) {
+            theme.hairline.frame(height: 1)
+        }
+    }
+
+    private var controls: some View {
+        HStack(spacing: BarqDesign.s1) {
+            TopBarButton(symbol: "magnifyingglass", theme: theme, help: "Command palette (⇧⌘P)") {
+                state.paletteVisible = true
+            }
+            TopBarButton(
+                symbol: state.broadcastInput ? "dot.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right",
+                theme: theme, tint: state.broadcastInput ? .orange : nil,
+                help: state.broadcastInput ? "Broadcasting to all panes — click to stop" : "Broadcast input to all panes"
+            ) { state.broadcastInput.toggle() }
+            TopBarButton(
+                symbol: "sparkles", theme: theme,
+                tint: state.aiPanelVisible ? theme.electric : nil,
+                help: "Toggle AI panel (⇧⌘A)"
+            ) { withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { state.aiPanelVisible.toggle() } }
+            TopBarButton(symbol: "plus", theme: theme, help: "New tab (⌘T)") {
+                state.newLocalTab()
+            }
+        }
+    }
+}
+
+/// A compact, hover-highlighting icon button for the top bar.
+private struct TopBarButton: View {
+    let symbol: String
+    let theme: BarqTheme
+    var tint: Color? = nil
+    let help: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(tint ?? theme.textSecondary)
+                .frame(width: 28, height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(hovering ? theme.hoverFill : .clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(help)
     }
 }
 
@@ -78,27 +122,27 @@ private struct GroupSegment: View {
     @ObservedObject var state: AppState
     let group: TabGroup
     let members: [TerminalTab]
+    let theme: BarqTheme
 
     private var accent: Color { Color(BarqTheme.hexToNSColor(group.colorHex)) }
     private var containsSelected: Bool { members.contains { $0.id == state.selectedTabID } }
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: BarqDesign.s1) {
             header
             if !group.collapsed {
                 ForEach(members) { tab in
-                    TabItemView(state: state, tab: tab, insideGroupBox: true)
+                    TabItemView(state: state, tab: tab, theme: theme, insideGroupBox: true)
                 }
             }
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, BarqDesign.s1)
         .padding(.vertical, 2)
         .background(
-            RoundedRectangle(cornerRadius: 9)
+            RoundedRectangle(cornerRadius: BarqDesign.rChip + 2)
                 .fill(accent.opacity(0.10))
-                .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(accent.opacity(0.35), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: BarqDesign.rChip + 2).strokeBorder(accent.opacity(0.30), lineWidth: 1))
         )
-        // Dropping anywhere on the group joins it.
         .dropDestination(for: TabTransfer.self) { payload, _ in
             guard let dragged = payload.first?.id else { return false }
             state.moveTab(dragged, intoGroup: group.id)
@@ -108,7 +152,9 @@ private struct GroupSegment: View {
 
     private var header: some View {
         Button {
-            state.toggleCollapse(groupID: group.id)
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                state.toggleCollapse(groupID: group.id)
+            }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: group.collapsed ? "chevron.right" : "chevron.down")
@@ -127,10 +173,7 @@ private struct GroupSegment: View {
             .foregroundStyle(accent)
             .padding(.horizontal, 7)
             .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(containsSelected ? accent.opacity(0.18) : .clear)
-            )
+            .background(RoundedRectangle(cornerRadius: 6).fill(containsSelected ? accent.opacity(0.18) : .clear))
         }
         .buttonStyle(.plain)
         .help(group.collapsed ? "Expand \(group.name)" : "Collapse \(group.name)")
@@ -161,54 +204,51 @@ private struct GroupSegment: View {
     }
 }
 
-// MARK: - Tab item (chip + drag/drop + context menu)
+// MARK: - Tab item
 
 private struct TabItemView: View {
     @ObservedObject var state: AppState
     let tab: TerminalTab
-    /// True when rendered inside a group's colored box (dot would be redundant).
+    let theme: BarqTheme
     var insideGroupBox: Bool = false
     @State private var hovering = false
 
     private var group: TabGroup? { state.group(id: tab.groupID) }
-    private var accent: Color? { group.map { Color(BarqTheme.hexToNSColor($0.colorHex)) } }
+    private var accent: Color { group.map { Color(BarqTheme.hexToNSColor($0.colorHex)) } ?? theme.electric }
     private var isSelected: Bool { tab.id == state.selectedTabID }
     private var isAgent: Bool { state.sessions.session(id: tab.focusedSessionID)?.origin == .agent }
 
     var body: some View {
         HStack(spacing: 6) {
-            // A lone tab that belongs to a group shows the group's accent dot,
-            // so its (latent) grouping is visible before a second tab joins.
-            if let accent, group != nil, !insideGroupBox {
+            if group != nil, !insideGroupBox {
                 Circle().fill(accent).frame(width: 6, height: 6)
-                    .help(group.map { "Group: \($0.name)" } ?? "")
             }
             if isAgent {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.purple)
+                Image(systemName: "sparkles").font(.system(size: 9)).foregroundStyle(.purple)
                     .help("Opened by an AI agent")
             }
             Text(state.title(for: tab))
                 .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? theme.textPrimary : theme.textSecondary)
                 .lineLimit(1)
             Button { state.closeTab(id: tab.id) } label: {
                 Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(theme.textSecondary)
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .opacity(hovering || isSelected ? 1 : 0)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: 7).fill(fillColor))
-        .overlay(alignment: .bottom) {
-            if isSelected {
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(accent ?? Color.accentColor)
-                    .frame(height: 2)
-                    .padding(.horizontal, 8)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: BarqDesign.rChip).fill(fillColor)
+                if isSelected {
+                    RoundedRectangle(cornerRadius: BarqDesign.rChip)
+                        .strokeBorder(accent.opacity(0.5), lineWidth: 1)
+                }
             }
-        }
+        )
         .contentShape(Rectangle())
         .onTapGesture { state.selectedTabID = tab.id }
         .onHover { hovering = $0 }
@@ -217,7 +257,6 @@ private struct TabItemView: View {
                 .padding(6)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
         }
-        // Drop a tab onto this chip → reorder to sit before it (adopts its group).
         .dropDestination(for: TabTransfer.self) { payload, _ in
             guard let dragged = payload.first?.id, dragged != tab.id else { return false }
             state.moveTab(dragged, before: tab.id)
@@ -227,8 +266,8 @@ private struct TabItemView: View {
     }
 
     private var fillColor: Color {
-        if isSelected { return (accent ?? .primary).opacity(0.15) }
-        if hovering { return Color.primary.opacity(0.06) }
+        if isSelected { return accent.opacity(theme.isDark ? 0.16 : 0.14) }
+        if hovering { return theme.hoverFill }
         return .clear
     }
 
@@ -265,9 +304,7 @@ private struct TabItemView: View {
         }
         Divider()
         if let session = state.sessions.session(id: tab.focusedSessionID) {
-            Button(session.isRecording ? "Stop Recording" : "Start Recording") {
-                session.toggleRecording()
-            }
+            Button(session.isRecording ? "Stop Recording" : "Start Recording") { session.toggleRecording() }
             Divider()
         }
         Button("Split Right") { state.selectedTabID = tab.id; state.splitFocused(direction: .horizontal) }
