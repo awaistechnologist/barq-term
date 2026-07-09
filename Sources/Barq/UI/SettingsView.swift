@@ -156,6 +156,7 @@ private struct MCPSettings: View {
     @ObservedObject var settings = SettingsStore.shared
     @State private var copied = false
     @State private var registered: String?
+    @State private var codeRegistered: String?
 
     private var serverBinaryPath: String {
         // Same directory as the app binary (SwiftPM build or app bundle).
@@ -209,7 +210,15 @@ private struct MCPSettings: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                Text("For Claude Code:  claude mcp add barq \(serverBinaryPath)")
+                HStack {
+                    Button("Register in Claude Code") { registerClaudeCode() }
+                    if let codeRegistered {
+                        Text(codeRegistered)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Text("Claude Code equivalent:  claude mcp add barq \(serverBinaryPath) -s user")
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
@@ -238,5 +247,60 @@ private struct MCPSettings: View {
         } catch {
             registered = "Failed: \(error.localizedDescription)"
         }
+    }
+
+    /// Register with Claude Code by invoking its CLI, which edits ~/.claude.json
+    /// safely (that file holds a lot of state — we don't hand-edit it).
+    private func registerClaudeCode() {
+        codeRegistered = "Registering…"
+        let path = serverBinaryPath
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result: String
+            if let claude = locateClaudeCLI() {
+                // Re-add cleanly so an existing entry is refreshed to this path.
+                run(claude, ["mcp", "remove", "barq", "-s", "user"])
+                let (status, output) = run(claude, ["mcp", "add", "barq", path, "-s", "user"])
+                result = status == 0
+                    ? "Registered ✓ — restart Claude Code (or /mcp)"
+                    : "Failed: \(output.isEmpty ? "claude mcp add exited \(status)" : output)"
+            } else {
+                result = "Couldn't find the `claude` CLI — copy the command below into a terminal."
+            }
+            DispatchQueue.main.async { codeRegistered = result }
+        }
+    }
+}
+
+/// Locate the `claude` CLI from a GUI app (which has a minimal PATH).
+private func locateClaudeCLI() -> String? {
+    let fm = FileManager.default
+    let candidates = [
+        "\(NSHomeDirectory())/.claude/local/claude",
+        "/opt/homebrew/bin/claude",
+        "/usr/local/bin/claude",
+        "\(NSHomeDirectory())/.local/bin/claude",
+    ]
+    for candidate in candidates where fm.isExecutableFile(atPath: candidate) { return candidate }
+    // Fall back to a login shell so user PATH customizations are honored.
+    let (status, output) = run("/bin/zsh", ["-lc", "command -v claude"])
+    let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+    return (status == 0 && fm.isExecutableFile(atPath: trimmed)) ? trimmed : nil
+}
+
+@discardableResult
+private func run(_ executable: String, _ arguments: [String]) -> (status: Int32, output: String) {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: executable)
+    process.arguments = arguments
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = pipe
+    do {
+        try process.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return (process.terminationStatus, String(data: data, encoding: .utf8) ?? "")
+    } catch {
+        return (-1, error.localizedDescription)
     }
 }
