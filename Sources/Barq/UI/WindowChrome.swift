@@ -19,6 +19,10 @@ struct WindowConfigurator: NSViewRepresentable {
         window.titleVisibility = .hidden
         window.styleMask.insert(.fullSizeContentView)
         window.isMovableByWindowBackground = false
+        // Disable automatic titlebar dragging entirely — otherwise dragging a
+        // tab (which sits in the titlebar band) moves the window instead of
+        // starting the tab drag. We re-add explicit dragging in WindowDragArea.
+        window.isMovable = false
         window.backgroundColor = .clear
         // Keep the standard traffic lights; they float over our top bar.
         window.standardWindowButton(.closeButton)?.superview?.needsLayout = true
@@ -29,11 +33,14 @@ struct WindowConfigurator: NSViewRepresentable {
 /// space in the top bar (controls placed above it still receive clicks).
 struct WindowDragArea: NSViewRepresentable {
     final class DragView: NSView {
-        override var mouseDownCanMoveWindow: Bool { true }
+        // The window has isMovable = false (so tabs don't drag it); we move it
+        // explicitly here via performDrag from the empty top-bar region.
         override func mouseDown(with event: NSEvent) {
-            // Double-click the title area to zoom, matching macOS convention.
-            if event.clickCount == 2 { window?.performZoom(nil) }
-            super.mouseDown(with: event)
+            if event.clickCount == 2 {
+                window?.performZoom(nil)   // double-click title area to zoom
+            } else {
+                window?.performDrag(with: event)
+            }
         }
     }
     func makeNSView(context: Context) -> NSView { DragView() }

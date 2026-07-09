@@ -57,12 +57,13 @@ struct ContentView: View {
                     terminalArea
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         // Chrome-style tear-off: drag a tab into the body to pop
-                        // it out into its own window.
-                        .dropDestination(for: TabTransfer.self) { payload, _ in
-                            guard let id = payload.first?.id else { return false }
-                            state.detach(tabID: id)
-                            return true
-                        } isTargeted: { tearOffTargeted = $0 }
+                        // it out into its own window. The drop is handled at the
+                        // AppKit level (SwiftUI .dropDestination doesn't fire over
+                        // the SwiftTerm NSView); we just mirror the targeting
+                        // highlight here via a notification.
+                        .onReceive(NotificationCenter.default.publisher(for: .barqTearOffTargeted)) { note in
+                            tearOffTargeted = (note.object as? Bool) ?? false
+                        }
                         .overlay {
                             if tearOffTargeted {
                                 ZStack {
