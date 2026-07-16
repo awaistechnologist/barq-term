@@ -13,8 +13,8 @@
 #
 # `brew upgrade --cask barq-term` then handles updates.
 cask "barq-term" do
-  version "0.7.1"
-  sha256 "03ba6767334cb2193ff2e015bd29cbd9a66628fd089711b3c4d7ed23697a0f81"
+  version "0.8.0"
+  sha256 "ba689690eec13c443ca7fcb967a4019fcc999cceeed4bd10c4ccc0d554580fcc"
 
   url "https://github.com/awaistechnologist/barq-term/releases/download/v#{version}/Barq-#{version}.dmg"
   name "Barq"

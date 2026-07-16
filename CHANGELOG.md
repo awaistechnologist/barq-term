@@ -2,6 +2,32 @@
 
 All notable changes to Barq are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.0] — 2026-07-16
+
+Tab & window UX fixes, Finder integration, and easier MCP setup. 184 tests.
+
+### Added
+- **Finder "Open in Barq"** service — right-click a folder → Services → opens a
+  local shell there (like Terminal's "New Terminal at Folder").
+- **One-click "Register in Claude Code"** in Settings → MCP (runs
+  `claude mcp add … -s user` for you), alongside the Claude Desktop button.
+- **Merge Back** button on torn-off windows to return a session to the main
+  window as a tab.
+
+### Fixed
+- **Tab tear-off** now works — dragging a tab used to move the whole window
+  (the tab bar sits in the titlebar band). Tabs are AppKit-backed and drag
+  cleanly; releasing away from the strip pops a session into its own window.
+- **Window dragging** restored after the tear-off change — the top bar drags
+  the window again (empty tab-strip area included).
+- **Terminal right-click actions** (New Tab Here / Save Directory as a Host /
+  Copy Working Directory) are enabled and resolve the real working directory
+  via `proc_pidinfo` (local shells don't emit OSC 7 under Barq).
+
+### Changed
+- Homebrew install documents `brew trust` (required by Homebrew 6+ for
+  third-party cask taps); CI uses `actions/checkout@v5`; polished DMG layout.
+
 ## [0.7.1] — 2026-07-08
 
 Polish, a critical rendering fix, local-AI setup, and the release pipeline.
