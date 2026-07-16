@@ -33,14 +33,29 @@ struct WindowConfigurator: NSViewRepresentable {
 /// space in the top bar (controls placed above it still receive clicks).
 struct WindowDragArea: NSViewRepresentable {
     final class DragView: NSView {
-        // The window has isMovable = false (so tabs don't drag it); we move it
-        // explicitly here via performDrag from the empty top-bar region.
+        // The window has isMovable = false (so dragging a tab can't move it).
+        // performDrag is blocked by that, so we move the window ourselves by
+        // tracking the mouse and repositioning the frame — which always works.
+        private var mouseDownScreen: NSPoint?
+        private var originAtMouseDown: NSPoint?
+
+        override var mouseDownCanMoveWindow: Bool { false }
+
         override func mouseDown(with event: NSEvent) {
             if event.clickCount == 2 {
                 window?.performZoom(nil)   // double-click title area to zoom
-            } else {
-                window?.performDrag(with: event)
+                mouseDownScreen = nil
+                return
             }
+            mouseDownScreen = NSEvent.mouseLocation
+            originAtMouseDown = window?.frame.origin
+        }
+
+        override func mouseDragged(with event: NSEvent) {
+            guard let window, let start = mouseDownScreen, let origin = originAtMouseDown else { return }
+            let now = NSEvent.mouseLocation
+            window.setFrameOrigin(NSPoint(x: origin.x + (now.x - start.x),
+                                          y: origin.y + (now.y - start.y)))
         }
     }
     func makeNSView(context: Context) -> NSView { DragView() }

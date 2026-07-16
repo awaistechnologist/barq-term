@@ -31,29 +31,37 @@ struct TabBarView: View {
             .help("Home")
             .padding(.trailing, BarqDesign.s2)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: BarqDesign.s2) {
-                    ForEach(state.tabLayout) { item in
-                        switch item {
-                        case .group(let group, let members):
-                            GroupSegment(state: state, group: group, members: members, theme: theme)
-                        case .ungrouped(let tab):
-                            TabItemView(state: state, tab: tab, theme: theme)
+            GeometryReader { geo in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: BarqDesign.s2) {
+                        ForEach(state.tabLayout) { item in
+                            switch item {
+                            case .group(let group, let members):
+                                GroupSegment(state: state, group: group, members: members, theme: theme)
+                            case .ungrouped(let tab):
+                                TabItemView(state: state, tab: tab, theme: theme)
+                            }
                         }
+                        Color.clear
+                            .frame(width: 26, height: 24)
+                            .contentShape(Rectangle())
+                            .dropDestination(for: TabTransfer.self) { payload, _ in
+                                guard let dragged = payload.first?.id else { return false }
+                                state.moveTab(dragged, before: nil)
+                                return true
+                            }
+                        // Fills the empty part of the tab strip so dragging there
+                        // moves the window (shrinks to nothing when tabs overflow
+                        // and the strip scrolls).
+                        WindowDragArea().frame(maxWidth: .infinity, minHeight: 24)
                     }
-                    Color.clear
-                        .frame(width: 26, height: 24)
-                        .contentShape(Rectangle())
-                        .dropDestination(for: TabTransfer.self) { payload, _ in
-                            guard let dragged = payload.first?.id else { return false }
-                            state.moveTab(dragged, before: nil)
-                            return true
-                        }
+                    .padding(.vertical, 5)
+                    .frame(minWidth: geo.size.width, alignment: .leading)
                 }
-                .padding(.vertical, 5)
+                .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.tabs.map(\.id))
+                .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.groups)
             }
-            .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.tabs.map(\.id))
-            .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.groups)
+            .frame(height: BarqDesign.topBarHeight)
 
             Spacer(minLength: BarqDesign.s2)
 
@@ -63,8 +71,10 @@ struct TabBarView: View {
         .frame(height: BarqDesign.topBarHeight)
         .background(
             ZStack {
-                WindowDragArea()
                 theme.elevated
+                // In front of the fill so empty top-bar space actually hits the
+                // drag view; tabs/buttons live in the foreground and still win.
+                WindowDragArea()
             }
         )
         .overlay(alignment: .bottom) {
