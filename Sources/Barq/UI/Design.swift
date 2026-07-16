@@ -72,59 +72,6 @@ extension BarqTheme {
     var textTertiary: Color { Color(nsColor: foregroundColor).opacity(0.35) }
 }
 
-/// The Barq lightning glyph — a custom angular bolt (not an SF Symbol), drawn
-/// in a normalized box so it scales crisply at any size.
-struct BarqBolt: Shape {
-    func path(in rect: CGRect) -> Path {
-        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height)
-        }
-        var path = Path()
-        path.move(to: p(0.60, 0.04))
-        path.addLine(to: p(0.28, 0.54))
-        path.addLine(to: p(0.46, 0.54))
-        path.addLine(to: p(0.38, 0.96))
-        path.addLine(to: p(0.74, 0.42))
-        path.addLine(to: p(0.55, 0.42))
-        path.addLine(to: p(0.66, 0.04))
-        path.closeSubpath()
-        return path
-    }
-}
-
-/// The Barq brand mark: a bolt in an electric badge + the wordmark.
-struct BarqLogo: View {
-    let theme: BarqTheme
-    var badge: CGFloat = 22
-    var wordmark: CGFloat = 15
-    var showWordmark: Bool = true
-
-    private var amberTop: Color { Color(.sRGB, red: 1.0, green: 0.83, blue: 0.35) }
-    private var amberBottom: Color { Color(.sRGB, red: 0.98, green: 0.62, blue: 0.08) }
-
-    var body: some View {
-        HStack(spacing: badge * 0.34) {
-            ZStack {
-                RoundedRectangle(cornerRadius: badge * 0.30, style: .continuous)
-                    .fill(LinearGradient(colors: [amberTop, amberBottom],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-                BarqBolt()
-                    .fill(Color.black.opacity(0.82))
-                    .frame(width: badge * 0.5, height: badge * 0.66)
-            }
-            .frame(width: badge, height: badge)
-            .shadow(color: amberBottom.opacity(0.45), radius: badge * 0.18, y: badge * 0.04)
-
-            if showWordmark {
-                Text("Barq")
-                    .font(.system(size: wordmark, weight: .heavy, design: .rounded))
-                    .tracking(-0.3)
-                    .foregroundStyle(theme.textPrimary)
-            }
-        }
-    }
-}
-
 /// A small keycap chip (e.g. ⌘T) for hints and the welcome screen.
 struct Keycap: View {
     let text: String

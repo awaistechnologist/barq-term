@@ -15,7 +15,7 @@ jobs:
     name: Build & Test (macOS arm64)
     runs-on: macos-15          # Apple Silicon, ships Xcode 16 / Swift 6
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Barq needs Swift 6 (tools-version 6.0 + Swift Testing).
       - name: Select Xcode 16

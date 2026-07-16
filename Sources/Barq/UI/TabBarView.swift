@@ -31,29 +31,37 @@ struct TabBarView: View {
             .help("Home")
             .padding(.trailing, BarqDesign.s2)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: BarqDesign.s2) {
-                    ForEach(state.tabLayout) { item in
-                        switch item {
-                        case .group(let group, let members):
-                            GroupSegment(state: state, group: group, members: members, theme: theme)
-                        case .ungrouped(let tab):
-                            TabItemView(state: state, tab: tab, theme: theme)
+            GeometryReader { geo in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: BarqDesign.s2) {
+                        ForEach(state.tabLayout) { item in
+                            switch item {
+                            case .group(let group, let members):
+                                GroupSegment(state: state, group: group, members: members, theme: theme)
+                            case .ungrouped(let tab):
+                                TabItemView(state: state, tab: tab, theme: theme)
+                            }
                         }
+                        Color.clear
+                            .frame(width: 26, height: 24)
+                            .contentShape(Rectangle())
+                            .dropDestination(for: TabTransfer.self) { payload, _ in
+                                guard let dragged = payload.first?.id else { return false }
+                                state.moveTab(dragged, before: nil)
+                                return true
+                            }
+                        // Fills the empty part of the tab strip so dragging there
+                        // moves the window (shrinks to nothing when tabs overflow
+                        // and the strip scrolls).
+                        WindowDragArea().frame(maxWidth: .infinity, minHeight: 24)
                     }
-                    Color.clear
-                        .frame(width: 26, height: 24)
-                        .contentShape(Rectangle())
-                        .dropDestination(for: TabTransfer.self) { payload, _ in
-                            guard let dragged = payload.first?.id else { return false }
-                            state.moveTab(dragged, before: nil)
-                            return true
-                        }
+                    .padding(.vertical, 5)
+                    .frame(minWidth: geo.size.width, alignment: .leading)
                 }
-                .padding(.vertical, 5)
+                .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.tabs.map(\.id))
+                .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.groups)
             }
-            .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.tabs.map(\.id))
-            .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.groups)
+            .frame(height: BarqDesign.topBarHeight)
 
             Spacer(minLength: BarqDesign.s2)
 
@@ -63,8 +71,10 @@ struct TabBarView: View {
         .frame(height: BarqDesign.topBarHeight)
         .background(
             ZStack {
-                WindowDragArea()
                 theme.elevated
+                // In front of the fill so empty top-bar space actually hits the
+                // drag view; tabs/buttons live in the foreground and still win.
+                WindowDragArea()
             }
         )
         .overlay(alignment: .bottom) {
@@ -259,51 +269,56 @@ private struct TabItemView: View {
     private var isAgent: Bool { state.sessions.session(id: tab.focusedSessionID)?.origin == .agent }
 
     var body: some View {
+        // Visual content; non-interactive so the AppKit handle behind it
+        // receives the mouse.
         HStack(spacing: 6) {
             if group != nil, !insideGroupBox {
                 Circle().fill(accent).frame(width: 6, height: 6)
             }
             if isAgent {
                 Image(systemName: "sparkles").font(.system(size: 9)).foregroundStyle(.purple)
-                    .help("Opened by an AI agent")
             }
             Text(state.title(for: tab))
                 .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
                 .foregroundStyle(isSelected ? theme.textPrimary : theme.textSecondary)
                 .lineLimit(1)
-            Button { state.closeTab(id: tab.id) } label: {
-                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(theme.textSecondary)
-            }
-            .buttonStyle(.plain)
-            .opacity(hovering || isSelected ? 1 : 0)
-            .help("Close tab (⌘W)")
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, 10)
+        .padding(.trailing, 26)
         .padding(.vertical, 5)
+        .allowsHitTesting(false)
         .background(
+            // Chip fill + AppKit handle. The handle sets mouseDownCanMoveWindow
+            // = false so dragging a tab drags the tab — not the whole window,
+            // which is what SwiftUI's .draggable did inside the titlebar band.
             ZStack {
                 RoundedRectangle(cornerRadius: BarqDesign.rChip).fill(fillColor)
                 if isSelected {
                     RoundedRectangle(cornerRadius: BarqDesign.rChip)
                         .strokeBorder(accent.opacity(0.5), lineWidth: 1)
                 }
+                TabDragHandle(
+                    tabID: tab.id,
+                    title: state.title(for: tab),
+                    onSelect: { state.selectedTabID = tab.id },
+                    onReorder: { dragged in state.moveTab(dragged, before: tab.id) },
+                    onHover: { hovering = $0 },
+                    menuProvider: buildContextMenu
+                )
             }
         )
-        .contentShape(Rectangle())
-        .onTapGesture { state.selectedTabID = tab.id }
-        .onHover { hovering = $0 }
-        .draggable(TabTransfer(id: tab.id)) {
-            Text(state.title(for: tab))
-                .padding(6)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(alignment: .trailing) {
+            Button { state.closeTab(id: tab.id) } label: {
+                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(theme.textSecondary)
+                    .padding(4)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .opacity(hovering || isSelected ? 1 : 0)
+            .padding(.trailing, 6)
+            .help("Close tab (⌘W)")
         }
-        .dropDestination(for: TabTransfer.self) { payload, _ in
-            guard let dragged = payload.first?.id, dragged != tab.id else { return false }
-            state.moveTab(dragged, before: tab.id)
-            return true
-        }
-        .contextMenu { menu }
     }
 
     private var fillColor: Color {
@@ -312,45 +327,222 @@ private struct TabItemView: View {
         return .clear
     }
 
-    @ViewBuilder
-    private var menu: some View {
-        Button("Rename…") {
+    private func buildContextMenu() -> NSMenu {
+        let m = NSMenu()
+        m.addItem(ClosureMenuItem(title: "Rename…") {
             if let v = TabPrompt.text(title: "Rename Tab", initial: state.title(for: tab)) {
                 state.renameTab(id: tab.id, to: v)
             }
-        }
-        Button("Close") { state.closeTab(id: tab.id) }
-        Button("Close Others") { state.closeOtherTabs(keeping: tab.id) }
-        Divider()
-        Menu("Group") {
-            Button("New Group from Tab…") {
-                if let v = TabPrompt.text(title: "New Group Name", initial: state.title(for: tab)) {
-                    state.createGroup(fromTab: tab.id, name: v)
-                }
+        })
+        m.addItem(ClosureMenuItem(title: "Close") { state.closeTab(id: tab.id) })
+        m.addItem(ClosureMenuItem(title: "Close Others") { state.closeOtherTabs(keeping: tab.id) })
+        m.addItem(.separator())
+
+        let groupItem = NSMenuItem(title: "Group", action: nil, keyEquivalent: "")
+        let gm = NSMenu()
+        gm.addItem(ClosureMenuItem(title: "New Group from Tab…") {
+            if let v = TabPrompt.text(title: "New Group Name", initial: state.title(for: tab)) {
+                state.createGroup(fromTab: tab.id, name: v)
             }
-            if !state.groups.isEmpty {
-                Divider()
-                ForEach(state.groups) { g in
-                    Button {
-                        state.moveTab(tab.id, intoGroup: g.id)
-                    } label: {
-                        Label(g.name, systemImage: tab.groupID == g.id ? "checkmark" : "circle")
-                    }
-                }
-            }
-            if tab.groupID != nil {
-                Divider()
-                Button("Remove from Group") { state.removeFromGroup(tabID: tab.id) }
+        })
+        if !state.groups.isEmpty {
+            gm.addItem(.separator())
+            for g in state.groups {
+                let item = ClosureMenuItem(title: g.name) { state.moveTab(tab.id, intoGroup: g.id) }
+                if tab.groupID == g.id { item.state = .on }
+                gm.addItem(item)
             }
         }
-        Divider()
+        if tab.groupID != nil {
+            gm.addItem(.separator())
+            gm.addItem(ClosureMenuItem(title: "Remove from Group") { state.removeFromGroup(tabID: tab.id) })
+        }
+        groupItem.submenu = gm
+        m.addItem(groupItem)
+        m.addItem(.separator())
+
         if let session = state.sessions.session(id: tab.focusedSessionID) {
-            Button(session.isRecording ? "Stop Recording" : "Start Recording") { session.toggleRecording() }
-            Divider()
+            m.addItem(ClosureMenuItem(title: session.isRecording ? "Stop Recording" : "Start Recording") {
+                session.toggleRecording()
+            })
+            m.addItem(.separator())
         }
-        Button("Split Right") { state.selectedTabID = tab.id; state.splitFocused(direction: .horizontal) }
-        Button("Split Down") { state.selectedTabID = tab.id; state.splitFocused(direction: .vertical) }
-        Button("Move to New Window") { state.selectedTabID = tab.id; state.detachFocusedSession() }
+        m.addItem(ClosureMenuItem(title: "Split Right") { state.selectedTabID = tab.id; state.splitFocused(direction: .horizontal) })
+        m.addItem(ClosureMenuItem(title: "Split Down") { state.selectedTabID = tab.id; state.splitFocused(direction: .vertical) })
+        m.addItem(ClosureMenuItem(title: "Move to New Window") { state.selectedTabID = tab.id; state.detachFocusedSession() })
+        return m
+    }
+}
+
+// MARK: - AppKit tab handle
+
+/// A menu item that runs a closure — lets us build the tab context menu in
+/// AppKit (the tab is now AppKit-driven for drag/selection).
+final class ClosureMenuItem: NSMenuItem {
+    private let handler: () -> Void
+    init(title: String, handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(fire), keyEquivalent: "")
+        target = self
+    }
+    required init(coder: NSCoder) { fatalError() }
+    @objc private func fire() { handler() }
+}
+
+/// AppKit view that backs a tab: it receives the mouse (so it can suppress
+/// window dragging via `mouseDownCanMoveWindow`), selects on click, starts a
+/// real drag session on drag (for tear-off + reorder), accepts reorder drops,
+/// and vends the context menu.
+private struct TabDragHandle: NSViewRepresentable {
+    let tabID: UUID
+    let title: String
+    let onSelect: () -> Void
+    let onReorder: (UUID) -> Void
+    let onHover: (Bool) -> Void
+    let menuProvider: () -> NSMenu
+
+    func makeNSView(context: Context) -> Handle {
+        Handle(tabID: tabID, title: title, onSelect: onSelect, onReorder: onReorder, onHover: onHover, menuProvider: menuProvider)
+    }
+
+    func updateNSView(_ view: Handle, context: Context) {
+        view.tabID = tabID
+        view.title = title
+        view.onSelect = onSelect
+        view.onReorder = onReorder
+        view.onHover = onHover
+        view.menuProvider = menuProvider
+    }
+
+    final class Handle: NSView, NSDraggingSource {
+        var tabID: UUID
+        var title: String
+        var onSelect: () -> Void
+        var onReorder: (UUID) -> Void
+        var onHover: (Bool) -> Void
+        var menuProvider: () -> NSMenu
+        private var mouseDownPoint: NSPoint?
+        private var didDrag = false
+        private var trackingArea: NSTrackingArea?
+
+        init(tabID: UUID, title: String,
+             onSelect: @escaping () -> Void,
+             onReorder: @escaping (UUID) -> Void,
+             onHover: @escaping (Bool) -> Void,
+             menuProvider: @escaping () -> NSMenu) {
+            self.tabID = tabID
+            self.title = title
+            self.onSelect = onSelect
+            self.onReorder = onReorder
+            self.onHover = onHover
+            self.menuProvider = menuProvider
+            super.init(frame: .zero)
+            registerForDraggedTypes([TabTearOff.pasteboardType])
+        }
+        required init?(coder: NSCoder) { fatalError() }
+
+        override var mouseDownCanMoveWindow: Bool { false }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let existing = trackingArea { removeTrackingArea(existing) }
+            let area = NSTrackingArea(rect: bounds,
+                                      options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                      owner: self)
+            addTrackingArea(area)
+            trackingArea = area
+        }
+
+        override func mouseEntered(with event: NSEvent) { onHover(true) }
+        override func mouseExited(with event: NSEvent) { onHover(false) }
+
+        override func mouseDown(with event: NSEvent) {
+            mouseDownPoint = event.locationInWindow
+            didDrag = false
+        }
+
+        override func mouseDragged(with event: NSEvent) {
+            guard let start = mouseDownPoint, !didDrag else { return }
+            let dx = event.locationInWindow.x - start.x
+            let dy = event.locationInWindow.y - start.y
+            guard dx * dx + dy * dy > 16 else { return }
+            didDrag = true
+            beginTabDrag(with: event)
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            if !didDrag { onSelect() }
+            mouseDownPoint = nil
+        }
+
+        override func menu(for event: NSEvent) -> NSMenu? { menuProvider() }
+
+        // Reorder drop target.
+        override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+            sender.draggingPasteboard.availableType(from: [TabTearOff.pasteboardType]) != nil ? .move : []
+        }
+        override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+            sender.draggingPasteboard.availableType(from: [TabTearOff.pasteboardType]) != nil ? .move : []
+        }
+        override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { true }
+        override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+            guard let dragged = TabTearOff.tabID(from: sender.draggingPasteboard) else { return false }
+            if dragged != tabID { onReorder(dragged) }
+            return true
+        }
+
+        func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+            .move
+        }
+
+        func draggingSession(_ session: NSDraggingSession, willBeginAt screenPoint: NSPoint) {
+            // Show the "release to open in a new window" affordance for the
+            // duration of the drag.
+            NotificationCenter.default.post(name: .barqTearOffTargeted, object: true)
+        }
+
+        func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+            NotificationCenter.default.post(name: .barqTearOffTargeted, object: false)
+            // A tab reorder (drop onto another tab) reports .move. Anything else —
+            // dropped on the terminal, elsewhere in the window, or off it — means
+            // the user pulled the tab away: tear it off into its own window.
+            if operation == [] {
+                NotificationCenter.default.post(name: .barqTearOffTab, object: tabID)
+            }
+        }
+
+        private func beginTabDrag(with event: NSEvent) {
+            let item = NSPasteboardItem()
+            if let data = try? JSONSerialization.data(withJSONObject: ["id": tabID.uuidString]) {
+                item.setData(data, forType: TabTearOff.pasteboardType)
+            }
+            let dragItem = NSDraggingItem(pasteboardWriter: item)
+            let image = Self.dragImage(for: title)
+            let origin = convert(event.locationInWindow, from: nil)
+            dragItem.setDraggingFrame(
+                NSRect(x: origin.x - image.size.width / 2, y: origin.y - image.size.height / 2,
+                       width: image.size.width, height: image.size.height),
+                contents: image)
+            beginDraggingSession(with: [dragItem], event: event, source: self)
+        }
+
+        private static func dragImage(for title: String) -> NSImage {
+            let font = NSFont.systemFont(ofSize: 12)
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: font, .foregroundColor: NSColor.labelColor,
+            ]
+            let text = title as NSString
+            let textSize = text.size(withAttributes: attrs)
+            let padX: CGFloat = 10, padY: CGFloat = 6
+            let size = NSSize(width: min(textSize.width, 220) + padX * 2, height: textSize.height + padY * 2)
+            let image = NSImage(size: size)
+            image.lockFocus()
+            NSColor.windowBackgroundColor.withAlphaComponent(0.96).setFill()
+            NSBezierPath(roundedRect: NSRect(origin: .zero, size: size), xRadius: 6, yRadius: 6).fill()
+            text.draw(at: NSPoint(x: padX, y: padY), withAttributes: attrs)
+            image.unlockFocus()
+            return image
+        }
     }
 }
 

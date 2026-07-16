@@ -21,8 +21,6 @@ cask "barq-term" do
   desc "AI-native macOS terminal with SSH, serial, Context Vault, and MCP"
   homepage "https://github.com/awaistechnologist/barq-term"
 
-  depends_on macos: ">= :ventura"   # macOS 13+
-
   app "Barq.app"
 
   zap trash: [

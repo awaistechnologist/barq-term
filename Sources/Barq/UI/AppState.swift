@@ -139,6 +139,14 @@ final class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: .barqTearOffTab)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] note in
+                guard let self, let tabID = note.object as? UUID else { return }
+                self.detach(tabID: tabID)
+            }
+            .store(in: &cancellables)
+
         // Re-style every open terminal when appearance settings change.
         settings.$themeID
             .dropFirst()
@@ -313,7 +321,7 @@ final class AppState: ObservableObject {
     /// Handle a right-click quick action from a terminal.
     private func handleTerminalAction(_ action: String, sessionID: String) {
         guard let session = sessions.session(id: sessionID) else { return }
-        let cwd = session.currentDirectory
+        let cwd = session.resolvedWorkingDirectory
         switch action {
         case "newTabHere":
             openLocalTab(in: cwd ?? FileManager.default.homeDirectoryForCurrentUser.path)
@@ -578,6 +586,21 @@ final class AppState: ObservableObject {
         DetachedWindowManager.shared.detach(session: session)
     }
 
+    /// Bring a torn-off session back into the main window as a new tab.
+    func reattachSession(_ sessionID: String) {
+        guard sessions.session(id: sessionID) != nil else { return }
+        DetachedWindowManager.shared.closeForReattach(sessionID: sessionID)
+        if let existing = tabs.first(where: { $0.root.sessionIDs.contains(sessionID) }) {
+            selectedTabID = existing.id
+        } else {
+            let tab = TerminalTab(root: .leaf(sessionID), focusedSessionID: sessionID)
+            tabs.append(tab)
+            selectedTabID = tab.id
+        }
+        NSApp.mainWindow?.makeKeyAndOrderFront(nil)
+        focusActiveTerminal()
+    }
+
     func detachFocusedSession() {
         if let session = focusedSession { detachSession(session.id) }
     }
@@ -670,4 +693,8 @@ extension Notification.Name {
     /// A right-click quick action from a terminal (object == sessionID,
     /// userInfo["action"] == action key).
     static let barqTerminalAction = Notification.Name("BarqTerminalAction")
+    /// A tab was dropped onto a terminal to tear it off (object == tab UUID).
+    static let barqTearOffTab = Notification.Name("BarqTearOffTab")
+    /// A tab drag entered/left a terminal's tear-off zone (object == Bool).
+    static let barqTearOffTargeted = Notification.Name("BarqTearOffTargeted")
 }

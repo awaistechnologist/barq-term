@@ -8,6 +8,10 @@
   <em>برق — "lightning", and the old Arabic word for the telegraph:<br>commands carried over wires to distant machines. That's what Barq does, with an AI operator.</em>
 </p>
 
+<p align="center">
+  <img src="docs/hero.svg" alt="Barq — Home screen with the omni-bar and your machines" width="820">
+</p>
+
 ---
 
 Barq is a modern terminal emulator and connection manager for macOS, written in **pure Swift** (SwiftUI + [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm)). No Electron, no web views, no lag.
@@ -65,6 +69,7 @@ Safety model:
 **Homebrew (recommended — handles updates via `brew upgrade`):**
 ```bash
 brew tap awaistechnologist/barq
+brew trust awaistechnologist/barq      # Homebrew 6+ requires trusting third-party cask taps
 brew install --cask barq-term          # add --no-quarantine to skip the Gatekeeper prompt
 ```
 

@@ -183,9 +183,14 @@ private func exportSSHConfig() {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let serviceProvider = BarqServiceProvider()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        // Register the "Open in Barq" Finder service (right-click → Services).
+        NSApp.servicesProvider = serviceProvider
+        NSUpdateDynamicServices()
         Task { @MainActor in
             AppState.shared.startServices()
         }
@@ -216,4 +221,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 extension Notification.Name {
     static let barqExplainRequested = Notification.Name("BarqExplainRequested")
+}
+
+/// Backs the "Open in Barq" Finder service (declared in Info.plist as
+/// NSServices → openInBarq). Finder hands us the selected folder(s); we open a
+/// local shell tab in each.
+final class BarqServiceProvider: NSObject {
+    @objc func openInBarq(_ pasteboard: NSPasteboard,
+                          userData: String?,
+                          error: AutoreleasingUnsafeMutablePointer<NSString?>?) {
+        // Finder may hand us file URLs or, per NSSendTypes, the path as text.
+        var raw = (pasteboard.readObjects(forClasses: [NSURL.self]) as? [URL])?
+            .filter(\.isFileURL).map(\.path) ?? []
+        if raw.isEmpty, let text = pasteboard.string(forType: .string) {
+            raw = text.split(separator: "\n").map(String.init)
+        }
+        let paths: [String] = raw.compactMap { path in
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return nil }
+            // A file was selected → use its enclosing folder.
+            return isDir.boolValue ? path : (path as NSString).deletingLastPathComponent
+        }
+        guard !paths.isEmpty else { return }
+        Task { @MainActor in
+            NSApp.activate(ignoringOtherApps: true)
+            for path in paths { AppState.shared.openLocalTab(in: path) }
+        }
+    }
 }

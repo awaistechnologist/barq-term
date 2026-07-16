@@ -1,6 +1,27 @@
 import Foundation
 import AppKit
 import SwiftTerm
+import UniformTypeIdentifiers
+
+// MARK: - Tab tear-off drop
+
+/// Decodes the `io.barq.tab` pasteboard payload that SwiftUI's `.draggable`
+/// writes for a dragged tab. Used to accept tear-off drops at the AppKit level —
+/// SwiftUI `.dropDestination` doesn't fire reliably over the terminal because
+/// the SwiftTerm NSView is frontmost and captures the drag.
+enum TabTearOff {
+    static let pasteboardType = NSPasteboard.PasteboardType(UTType.barqTab.identifier)
+
+    private struct Payload: Codable { let id: UUID }
+
+    static func tabID(from pasteboard: NSPasteboard) -> UUID? {
+        guard let data = pasteboard.data(forType: pasteboardType) else { return nil }
+        if let p = try? JSONDecoder().decode(Payload.self, from: data) { return p.id }
+        if let p = try? PropertyListDecoder().decode(Payload.self, from: data) { return p.id }
+        return nil
+    }
+}
+
 
 // MARK: - Process-backed terminal (local shell, ssh)
 
@@ -13,6 +34,7 @@ final class ProcessTerminalView: LocalProcessTerminalView {
     /// Called with dropped file paths (used for SCP upload on SSH sessions).
     var onFilesDropped: (([String]) -> Void)?
 
+    /// Accept file drops for SCP upload (SSH sessions).
     func enableFileDrops() {
         registerForDraggedTypes([.fileURL])
     }
@@ -65,6 +87,13 @@ final class ProcessTerminalView: LocalProcessTerminalView {
     @objc private func barqAction(_ sender: NSMenuItem) {
         guard let sessionID, let key = sender.representedObject as? String else { return }
         NotificationCenter.default.post(name: .barqTerminalAction, object: sessionID, userInfo: ["action": key])
+    }
+
+    // SwiftTerm's validateUserInterfaceItem returns false for actions it doesn't
+    // know, which greys out our custom menu items. Whitelist ours.
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(barqAction(_:)) { return true }
+        return super.validateUserInterfaceItem(item)
     }
 }
 

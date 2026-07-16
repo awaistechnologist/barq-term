@@ -116,7 +116,7 @@ final class BridgeHandler {
                     "session_id": session.id,
                     "status": session.status.label,
                     "profile": session.profile.name,
-                    "cwd": session.currentDirectory ?? ""
+                    "cwd": session.resolvedWorkingDirectory ?? ""
                 ]
             }
 

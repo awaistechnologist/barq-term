@@ -60,6 +60,27 @@ cat > "$APP/Contents/Info.plist" <<PLIST
             <array><string>public.folder</string></array>
         </dict>
     </array>
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <!-- Finder right-click → Services → "Open in Barq" on a folder.
+                 Keys mirror Terminal's "New Terminal at Folder" so Finder
+                 surfaces it the same way. -->
+            <key>NSMenuItem</key>
+            <dict><key>default</key><string>Open in Barq</string></dict>
+            <key>NSMessage</key><string>openInBarq</string>
+            <key>NSPortName</key><string>Barq</string>
+            <key>NSRequiredContext</key>
+            <dict><key>NSTextContent</key><string>FilePath</string></dict>
+            <key>NSSendTypes</key>
+            <array><string>public.plain-text</string></array>
+            <key>NSSendFileTypes</key>
+            <array>
+                <string>public.directory</string>
+                <string>com.apple.resolvable</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST

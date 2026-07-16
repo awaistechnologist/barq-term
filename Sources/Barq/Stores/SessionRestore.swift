@@ -25,7 +25,7 @@ enum SessionRestore {
             let group = tab.groupID.flatMap { groupByID[$0] }
             result.append(RestorableSession(
                 profileID: session.profile.id,
-                workingDirectory: session.currentDirectory,
+                workingDirectory: session.resolvedWorkingDirectory,
                 customTitle: tab.customTitle,
                 groupName: group?.name,
                 groupColorHex: group?.colorHex
