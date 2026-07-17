@@ -22,11 +22,29 @@ enum SSHCommandBuilder {
         profile.authType == .key || profile.authType == .keyText
     }
 
+    /// The command to run on the remote instead of a default interactive login
+    /// shell, or nil to keep the default login shell.
+    /// - An explicit `remoteCommand` wins.
+    /// - Otherwise, `loginShell == false` runs a plain (non-login) interactive
+    ///   shell — `exec ${SHELL:-/bin/sh}` isn't invoked as a login shell, so it
+    ///   skips /etc/profile[.d], which is exactly the gate some devices use.
+    static func remoteShellCommand(for profile: ConnectionProfile) -> String? {
+        if !profile.remoteCommand.isEmpty { return profile.remoteCommand }
+        if !profile.loginShell { return "exec ${SHELL:-/bin/sh}" }
+        return nil
+    }
+
     static func sshArguments(for profile: ConnectionProfile) -> [String] {
         var args: [String] = []
 
         if profile.port != 22 {
             args += ["-p", String(profile.port)]
+        }
+        // A remote command doesn't get a PTY by default; force one (-tt) so the
+        // shell/command is interactive.
+        let command = remoteShellCommand(for: profile)
+        if command != nil {
+            args += ["-tt"]
         }
         if usesIdentityFile(profile), !profile.identityFile.isEmpty {
             args += ["-i", expandTilde(profile.identityFile), "-o", "IdentitiesOnly=yes"]
@@ -68,6 +86,9 @@ enum SSHCommandBuilder {
         // can never be interpreted as an ssh option (option injection).
         args.append("--")
         args.append(destination)
+        // Remote command (if any) follows the destination; ssh sends it to the
+        // remote shell verbatim.
+        if let command { args.append(command) }
         return args
     }
 

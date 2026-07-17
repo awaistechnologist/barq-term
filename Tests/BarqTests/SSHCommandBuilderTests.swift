@@ -19,6 +19,33 @@ import Foundation
         #expect(!(args.contains("-p")), "default port 22 needs no -p")
     }
 
+    @Test func testLoginShellDefault_noCommandNoForcedTTY() {
+        let args = SSHCommandBuilder.sshArguments(for: makeProfile())
+        #expect(SSHCommandBuilder.remoteShellCommand(for: makeProfile()) == nil)
+        #expect(!args.contains("-tt"))
+        #expect(args.last == "pi@10.0.0.5", "no trailing command in login-shell mode")
+    }
+
+    @Test func testPlainShellRunsNonLoginShellWithTTY() {
+        var profile = makeProfile()
+        profile.loginShell = false
+        let args = SSHCommandBuilder.sshArguments(for: profile)
+        #expect(args.contains("-tt"), "a remote command needs a forced PTY")
+        #expect(args.last == "exec ${SHELL:-/bin/sh}")
+        // command comes after the destination
+        #expect(args[args.count - 2] == "pi@10.0.0.5")
+    }
+
+    @Test func testRemoteCommandOverridesLoginShell() {
+        var profile = makeProfile()
+        profile.loginShell = true          // ignored when remoteCommand set
+        profile.remoteCommand = "htop"
+        let args = SSHCommandBuilder.sshArguments(for: profile)
+        #expect(args.contains("-tt"))
+        #expect(args.last == "htop")
+        #expect(SSHCommandBuilder.remoteShellCommand(for: profile) == "htop")
+    }
+
     @Test func testCustomPort() {
         var profile = makeProfile()
         profile.port = 2222

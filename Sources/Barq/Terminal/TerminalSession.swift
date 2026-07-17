@@ -42,6 +42,11 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published var status: SessionStatus = .connecting
     @Published var currentDirectory: String?
     @Published var isRecording = false
+    /// Set when an SSH session authenticated but died almost immediately with a
+    /// non-zero code — the classic "server gates interactive logins" symptom.
+    @Published var loginGateSuspected = false
+    /// When the session first produced output (i.e. authenticated / connected).
+    private var connectedAt: Date?
 
     let recorder = SessionRecorder()
 
@@ -75,8 +80,11 @@ final class TerminalSession: ObservableObject, Identifiable {
             }
             view.onExit = { [weak self] code in
                 Task { @MainActor in
-                    self?.status = .exited(code)
-                    self?.streamBackend = nil
+                    guard let self else { return }
+                    let normalized = ExitStatus.normalize(code)
+                    self.detectLoginGate(exit: normalized)
+                    self.status = .exited(normalized)
+                    self.streamBackend = nil
                 }
             }
             let adapter = ProcessEventAdapter(session: self)
@@ -190,7 +198,21 @@ final class TerminalSession: ObservableObject, Identifiable {
         Task { @MainActor [weak self] in
             guard let self, case .connecting = self.status else { return }
             self.status = .connected
+            self.connectedAt = Date()
         }
+    }
+
+    /// Heuristic: an SSH session that authenticated (produced output) then died
+    /// within ~1.5s with a non-zero code is almost always a server gating
+    /// interactive logins via /etc/profile[.d]. A plain (non-login) shell fixes
+    /// it — the exit overlay offers a one-click switch.
+    private func detectLoginGate(exit: Int32?) {
+        guard profile.kind == .ssh,
+              profile.loginShell, profile.remoteCommand.isEmpty,
+              let exit, exit != 0,
+              let connectedAt, Date().timeIntervalSince(connectedAt) < 1.5
+        else { return }
+        loginGateSuspected = true
     }
 
     /// One-shot password auto-type for password-auth SSH sessions.

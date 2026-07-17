@@ -88,6 +88,17 @@ struct ProfileEditorView: View {
                         Toggle("Forward SSH agent (-A)", isOn: $draft.agentForward)
                         Toggle("Legacy SCP (dropbear / BusyBox)", isOn: $draft.legacySCP)
                     }
+                    Section("Shell") {
+                        Toggle("Login shell", isOn: $draft.loginShell)
+                            .disabled(!draft.remoteCommand.isEmpty)
+                        Text("Sources /etc/profile & /etc/profile.d. Turn off for devices that block interactive logins there and close the session immediately (e.g. some routers).")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                        TextField("Remote command (optional), e.g. bash", text: $draft.remoteCommand)
+                        Text("Runs this on the remote instead of a shell, with a forced PTY. Overrides the login-shell setting.")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
                     Section("Advanced SSH options") {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("One -o option per line, e.g. StrictHostKeyChecking=no")

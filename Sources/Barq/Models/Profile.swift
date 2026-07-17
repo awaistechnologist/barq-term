@@ -185,6 +185,14 @@ struct ConnectionProfile: Codable, Identifiable, Hashable {
     /// Cloudflare Access: tunnel via `cloudflared access ssh`. Mutually
     /// exclusive with jumpHost.
     var cloudflareAccess: Bool = false
+    /// When true (default), open an interactive login shell — sources
+    /// /etc/profile & /etc/profile.d. Some devices gate interactive logins
+    /// there and exit non-zero; turn this off to run a plain (non-login) shell
+    /// or `remoteCommand` instead.
+    var loginShell: Bool = true
+    /// Optional command to run on the remote instead of an interactive shell,
+    /// e.g. `bash`, `htop`. Runs with a forced PTY. Overrides loginShell.
+    var remoteCommand: String = ""
 
     // Serial
     var serialDevice: String = ""
@@ -207,6 +215,7 @@ struct ConnectionProfile: Codable, Identifiable, Hashable {
     enum CodingKeys: String, CodingKey {
         case id, name, kind, host, port, username, authType, identityFile, extraSSHOptions
         case agentForward, legacySCP, jumpHost, portForwards, cloudflareAccess
+        case loginShell, remoteCommand
         case serialDevice, baudRate, dataBits, stopBits, parity, workingDirectory
         case tags, aiAllowed, customActions, notes
     }
@@ -230,6 +239,8 @@ struct ConnectionProfile: Codable, Identifiable, Hashable {
         jumpHost = d(.jumpHost, JumpHost())
         portForwards = d(.portForwards, [])
         cloudflareAccess = d(.cloudflareAccess, false)
+        loginShell = d(.loginShell, true)
+        remoteCommand = d(.remoteCommand, "")
         serialDevice = d(.serialDevice, "")
         baudRate = d(.baudRate, 115200)
         dataBits = d(.dataBits, 8)

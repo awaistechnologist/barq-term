@@ -126,20 +126,34 @@ struct TerminalPaneView: View {
             }
             if case .exited(let code) = session.status {
                 VStack(spacing: 8) {
-                    Image(systemName: "bolt.slash")
+                    Image(systemName: session.loginGateSuspected ? "lock.slash" : "bolt.slash")
                         .font(.system(size: 24))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(session.loginGateSuspected ? theme.electric : .secondary)
                     Text("Session ended\(code.map { " (exit \($0))" } ?? "")")
                         .font(.callout)
                         .foregroundStyle(.secondary)
+
+                    if session.loginGateSuspected {
+                        Text("This server closed the session right after login. It may be **blocking interactive logins** via an `/etc/profile.d` gate — a plain (non-login) shell usually gets in.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 360)
+                    }
                     if let reason = lastMeaningfulLine {
                         Text(reason)
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(theme.textSecondary)
                             .multilineTextAlignment(.center)
-                            .frame(maxWidth: 340)
+                            .frame(maxWidth: 360)
+                            .padding(8)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
                     }
                     HStack(spacing: 8) {
+                        if session.loginGateSuspected {
+                            Button("Retry with plain shell") { AppState.shared.reconnectAsPlainShell(session.id) }
+                                .buttonStyle(.borderedProminent)
+                        }
                         Button("Reconnect") { AppState.shared.reconnect(session.id) }
                         Button("Close Pane") { AppState.shared.closeSession(session.id) }
                     }

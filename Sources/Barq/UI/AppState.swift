@@ -617,6 +617,21 @@ final class AppState: ObservableObject {
         focusActiveTerminal()
     }
 
+    /// Turn off the login shell for this session's profile (persisting it) and
+    /// reconnect — the fix for servers that gate interactive logins.
+    func reconnectAsPlainShell(_ sessionID: String) {
+        guard let old = sessions.session(id: sessionID),
+              let idx = tabs.firstIndex(where: { $0.root.sessionIDs.contains(sessionID) }) else { return }
+        var profile = old.profile
+        profile.loginShell = false
+        if profiles.profile(id: profile.id) != nil { profiles.upsert(profile) }  // persist the toggle
+        let fresh = sessions.open(profile: profile, origin: .user)
+        tabs[idx].root = tabs[idx].root.replacingLeaf(sessionID, with: fresh.id)
+        if tabs[idx].focusedSessionID == sessionID { tabs[idx].focusedSessionID = fresh.id }
+        sessions.close(id: sessionID)
+        focusActiveTerminal()
+    }
+
     /// Tear a whole tab out into its own window (uses its focused pane).
     func detach(tabID: UUID) {
         if let tab = tabs.first(where: { $0.id == tabID }) {
