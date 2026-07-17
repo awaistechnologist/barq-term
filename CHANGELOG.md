@@ -2,6 +2,25 @@
 
 All notable changes to Barq are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.1] — 2026-07-17
+
+Makes login-gated devices (e.g. Vodafone MachineLink, dropbear/BusyBox)
+usable. 192 tests.
+
+### Added
+- **Non-login / plain-shell SSH mode** — a per-profile **Login shell** toggle and
+  optional **Remote command** (Profile → Shell). Plain-shell runs a non-login
+  interactive shell (`exec ${SHELL:-/bin/sh}`), which skips `/etc/profile.d` —
+  the gate some devices use to reject interactive logins.
+- **Instant-exit diagnostics** — an SSH session that authenticates then dies in
+  under ~1.5s non-zero now flags that the server may be gating interactive
+  logins, surfaces the captured server output prominently, and offers a
+  one-click **Retry with plain shell**.
+
+### Fixed
+- **Exit codes normalized** — report `2`, not the raw `wait()` status `512`
+  (`WEXITSTATUS`; signals shown as `128 + signal`).
+
 ## [0.8.0] — 2026-07-16
 
 Tab & window UX fixes, Finder integration, and easier MCP setup. 184 tests.
