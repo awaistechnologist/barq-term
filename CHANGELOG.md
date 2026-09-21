@@ -2,6 +2,28 @@
 
 All notable changes to Barq are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.2] — 2026-09-21
+
+MCP bridge reliability — fixes surfaced by an agent driving Barq over MCP.
+194 tests.
+
+### Fixed
+- **Response desync (off-by-one / "Missing required parameter")** — the bridge
+  dispatched each request in its own async task and replied when it finished,
+  so a slow `run_command` could be overtaken and every later call returned the
+  previous one's payload. Responses are now written in request order, and
+  barq-mcp correlates them by JSON-RPC `id` (draining stale lines) so a leftover
+  can never reach the wrong caller.
+- **Multi-line commands returned `exit_code: unknown`** — now run via `eval` on
+  a single-quoted payload, so heredocs and multi-line scripts execute atomically
+  in the current shell (state persists) and the completion marker always lands.
+- **"Timed out waiting for the Barq app" on long commands** — barq-mcp waits
+  `max(180, timeout + 30)`; default `run_command` / `run_on_tag` timeout raised
+  to 60s.
+- **Sessions dropping to `exited(255)` between calls** — `TCPKeepAlive=yes` and
+  a longer keepalive window, plus `run_command` auto-reconnects a session that
+  idled out before running.
+
 ## [0.8.1] — 2026-07-17
 
 Makes login-gated devices (e.g. Vodafone MachineLink, dropbear/BusyBox)
