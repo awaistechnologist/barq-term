@@ -21,6 +21,19 @@ enum BridgeError: LocalizedError {
     }
 }
 
+/// Parameter extraction for bridge methods.
+enum BridgeParams {
+    /// A required string parameter, tolerating a value that arrived as a JSON
+    /// number. MCP clients (and LLMs synthesizing tool calls) often re-send a
+    /// numeric-looking id like `"1"` as the number `1`; without this, a valid
+    /// `session_id` was rejected as "missing required parameter".
+    static func string(_ params: [String: Any], _ key: String) -> String? {
+        if let s = params[key] as? String { return s }
+        if let n = params[key] as? NSNumber { return n.stringValue }
+        return nil
+    }
+}
+
 /// Implements every bridge method. This is the single enforcement point for
 /// agent access: profile AI toggles and vault policies are checked here.
 final class BridgeHandler {
@@ -223,8 +236,8 @@ final class BridgeHandler {
         }
     }
 
-    private func require<T>(_ params: [String: Any], _ key: String) throws -> T {
-        guard let value = params[key] as? T else { throw BridgeError.missingParam(key) }
+    private func require(_ params: [String: Any], _ key: String) throws -> String {
+        guard let value = BridgeParams.string(params, key) else { throw BridgeError.missingParam(key) }
         return value
     }
 
