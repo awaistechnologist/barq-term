@@ -76,7 +76,10 @@ enum SSHCommandBuilder {
         if !profile.extraSSHOptions.contains(where: { $0.lowercased().hasPrefix("connecttimeout") }) {
             args += ["-o", "ConnectTimeout=15"]
         }
-        args += ["-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3"]
+        // Keep sessions alive across idle gaps (agent workflows pause between
+        // commands): app-level keepalives + TCP keepalive, with a generous
+        // count before giving up (30s × 6 = 3min tolerance).
+        args += ["-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=6", "-o", "TCPKeepAlive=yes"]
 
         var destination = profile.host
         if !profile.username.isEmpty {

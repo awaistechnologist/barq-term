@@ -123,7 +123,7 @@ final class BridgeHandler {
         case "run_command":
             let id: String = try require(params, "session_id")
             let rawCommand: String = try require(params, "command")
-            let timeout = params["timeout"] as? Double ?? 30
+            let timeout = params["timeout"] as? Double ?? 60
             // Expand vault refs FIRST, then classify the *expanded* command, so
             // a dangerous payload hidden in a vault variable can't smuggle past
             // the guardrail (secrets are usable, never readable).
@@ -132,6 +132,8 @@ final class BridgeHandler {
             guard let session = await MainActor.run(body: { SessionManager.shared.session(id: id) }) else {
                 throw BridgeError.sessionNotFound(id)
             }
+            // Transparently reconnect a session that idled out between calls.
+            await session.ensureLive()
             let result = await session.runCommand(command, timeout: timeout)
             // Redact any secret values that were echoed/printed before returning.
             let safeOutput = await vault.redactSecrets(in: result.output)
@@ -143,7 +145,7 @@ final class BridgeHandler {
         case "run_on_tag":
             let tag: String = try require(params, "tag")
             let rawCommand: String = try require(params, "command")
-            let timeout = params["timeout"] as? Double ?? 30
+            let timeout = params["timeout"] as? Double ?? 60
             return try await runOnTag(tag: tag, rawCommand: rawCommand, timeout: timeout)
 
         case "send_input":

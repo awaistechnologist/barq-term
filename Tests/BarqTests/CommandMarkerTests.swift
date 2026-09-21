@@ -4,11 +4,29 @@ import Foundation
 
 @Suite struct CommandMarkerTests {
 
-    @Test func testWrapIsPOSIX() {
+    @Test func testWrapUsesEvalAndMarker() {
         let wrapped = CommandMarker.wrap(command: "ls -la", token: "abc123")
-        #expect(wrapped.hasPrefix("ls -la; printf"))
+        #expect(wrapped.hasPrefix("eval 'ls -la'; printf"))
         #expect(wrapped.contains("__BARQ_abc123"))
         #expect(wrapped.contains("$?"))
+    }
+
+    @Test func testWrapMultilineStaysSingleLogicalCommand() {
+        // A 2-line script must not be fed as two commands; it lives inside one
+        // single-quoted eval so the marker still lands after it.
+        let script = "cd /tmp\nls -la"
+        let wrapped = CommandMarker.wrap(command: script, token: "tok")
+        #expect(wrapped.hasPrefix("eval 'cd /tmp\nls -la'"))
+        #expect(wrapped.contains("__BARQ_tok_%s__"))
+        // The marker printf is outside the quoted payload (comes after the closing quote).
+        let afterPayload = wrapped.components(separatedBy: "'; printf").last ?? ""
+        #expect(afterPayload.contains("__BARQ_tok"))
+    }
+
+    @Test func testWrapEscapesSingleQuotes() {
+        let wrapped = CommandMarker.wrap(command: "echo 'hi'", token: "t")
+        // ' must be escaped as '\'' so the eval payload stays balanced.
+        #expect(wrapped.contains("echo '\\''hi'\\''"))
     }
 
     @Test func testExtractIncomplete() {

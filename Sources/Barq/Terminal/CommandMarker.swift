@@ -13,9 +13,16 @@ enum CommandMarker {
     }
 
     /// Shell line that runs `command` and then prints the marker + exit code.
+    ///
+    /// The command is run via `eval` on a single-quoted, quote-escaped payload.
+    /// This lets multi-line scripts and heredocs execute **atomically in the
+    /// current shell** (so `cd`/env changes still persist between calls) instead
+    /// of being fed line-by-line over the PTY — which submitted partial commands
+    /// and left the exit-code marker unmatched (`exit_code: unknown`).
+    /// `printf` keeps the marker POSIX-portable (BusyBox, dash, bash, zsh).
     static func wrap(command: String, token: String) -> String {
-        // `printf` keeps it POSIX-portable (BusyBox, dash, bash, zsh).
-        "\(command); printf '\\n\(marker(token: token))_%s__\\n' \"$?\""
+        let escaped = command.replacingOccurrences(of: "'", with: "'\\''")
+        return "eval '\(escaped)'; printf '\\n\(marker(token: token))_%s__\\n' \"$?\""
     }
 
     /// Scan accumulated output for the *executed* marker. The echoed command

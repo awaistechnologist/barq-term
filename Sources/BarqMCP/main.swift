@@ -12,6 +12,8 @@ import Darwin
 final class BridgeClient {
     private var fd: Int32 = -1
     private var inbox = Data()
+    private let lock = NSLock()
+    private var nextId = 0
 
     var socketPath: String {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -53,10 +55,15 @@ final class BridgeClient {
     /// Synchronous round-trip; single request in flight at a time (MCP stdio
     /// clients serialize tool calls, and the bridge answers by request id).
     func call(method: String, params: [String: Any]) throws -> Any {
+        // One round-trip at a time on the shared connection.
+        lock.lock()
+        defer { lock.unlock() }
         guard connectIfNeeded() else {
             throw BarqMCPError.appNotRunning
         }
-        let request: [String: Any] = ["id": Int.random(in: 1...1_000_000), "method": method, "params": params]
+        nextId += 1
+        let requestId = nextId
+        let request: [String: Any] = ["id": requestId, "method": method, "params": params]
         var data = try JSONSerialization.data(withJSONObject: request)
         data.append(0x0A)
 
@@ -74,16 +81,25 @@ final class BridgeClient {
             throw BarqMCPError.appNotRunning
         }
 
-        // Read one line (responses are serialized per connection).
+        // Read one line (responses are serialized per connection). The app
+        // returns at the command's own timeout, so wait at least that long plus
+        // margin — otherwise a long command (e.g. timeout: 300) trips a false
+        // "Timed out waiting for the Barq app" while the app is still waiting.
         var buf = [UInt8](repeating: 0, count: 65536)
-        let deadline = Date().addingTimeInterval(180)
+        let commandTimeout = (params["timeout"] as? Double) ?? 30
+        let deadline = Date().addingTimeInterval(max(180, commandTimeout + 30))
         while Date() < deadline {
-            if let newline = inbox.firstIndex(of: 0x0A) {
+            // Drain every buffered line, returning only the response whose id
+            // matches this request. A stale/mismatched line is discarded, so a
+            // leftover can never be handed back to the wrong caller (the
+            // off-by-one bug). Unparseable lines are skipped, not fatal.
+            while let newline = inbox.firstIndex(of: 0x0A) {
                 let line = inbox.prefix(upTo: newline)
                 inbox.removeSubrange(...newline)
-                guard let object = try JSONSerialization.jsonObject(with: Data(line)) as? [String: Any] else {
-                    throw BarqMCPError.protocolError
-                }
+                guard !line.isEmpty,
+                      let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any]
+                else { continue }
+                guard (object["id"] as? NSNumber)?.intValue == requestId else { continue }
                 if let error = object["error"] as? String {
                     throw BarqMCPError.bridge(error)
                 }

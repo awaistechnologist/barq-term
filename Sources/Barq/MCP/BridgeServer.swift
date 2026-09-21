@@ -84,6 +84,11 @@ private final class BridgeConnection {
     private let handler: BridgeHandler
     private let writeLock = NSLock()
     private var selfRef: BridgeConnection?
+    /// Tail of a per-connection task chain. Each request awaits the previous
+    /// one before writing its response, so responses always go out in request
+    /// order — even though `handler.handle` is async and a slow `run_command`
+    /// would otherwise let a later, faster request's response overtake it.
+    private var pendingTail: Task<Void, Never>?
 
     init(fd: Int32, queue: DispatchQueue, handler: BridgeHandler) {
         self.fd = fd
@@ -123,10 +128,16 @@ private final class BridgeConnection {
         let method = object["method"] as? String ?? ""
         let params = object["params"] as? [String: Any] ?? [:]
 
-        Task {
+        // Chain onto the previous request so responses are written in the order
+        // requests arrived. `process` runs on the serial bridge queue, so this
+        // read-modify-write of `pendingTail` is race-free.
+        let previous = pendingTail
+        pendingTail = Task { [weak self] in
+            await previous?.value
+            guard let self else { return }
             var response: [String: Any] = ["id": id]
             do {
-                response["result"] = try await handler.handle(method: method, params: params)
+                response["result"] = try await self.handler.handle(method: method, params: params)
             } catch {
                 response["error"] = error.localizedDescription
             }

@@ -247,6 +247,28 @@ final class TerminalSession: ObservableObject, Identifiable {
         send(text)
     }
 
+    /// Relaunch the underlying process if the session has exited (e.g. an SSH
+    /// session that idled out). Reuses the same session id and terminal view.
+    func restart() {
+        guard case .exited = status else { return }
+        connectedAt = nil
+        loginGateSuspected = false
+        status = .connecting
+        start()
+    }
+
+    /// Ensure the session is live before running a command — restarts a dead
+    /// session and waits (briefly) for it to reconnect. Lets agent workflows
+    /// survive idle drops between calls.
+    func ensureLive(timeout: TimeInterval = 15) async {
+        if case .exited = status { restart() }
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if case .connected = status { return }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+    }
+
     /// Run a command and await its output using the marker technique.
     ///
     /// For POSIX-shell targets (local/ssh) we always wait for the exit-code
